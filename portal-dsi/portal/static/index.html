@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="pt-AO">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Portal DSI</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header>
+    <div class="marca">MHAIS <span>Portal DSI</span></div>
+    <nav id="nav"></nav>
+    <div class="utilizador" id="utilizador"></div>
+  </header>
+  <main id="conteudo"></main>
+
+  <dialog id="dialogo">
+    <form method="dialog" id="form-dialogo">
+      <h2 id="dialogo-titulo"></h2>
+      <div id="dialogo-corpo"></div>
+      <p class="erro" id="dialogo-erro"></p>
+      <menu>
+        <button value="cancelar" formnovalidate>Fechar</button>
+        <button value="gravar" id="btn-gravar" class="primario">Gravar</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
