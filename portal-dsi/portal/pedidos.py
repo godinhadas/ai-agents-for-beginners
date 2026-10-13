@@ -22,11 +22,7 @@ def staff(u: Utilizador) -> bool:
 
 
 def pode_ver(u: Utilizador, p: Pedido) -> bool:
-    return (
-        staff(u)
-        or u.id in (p.criado_por_id, p.beneficiario_id, p.aprovador_id)
-        or p.beneficiario.chefia_id == u.id
-    )
+    return staff(u) or u.id in (p.criado_por_id, p.beneficiario_id)
 
 
 def _evento(db: Session, p: Pedido, u: Utilizador | None, accao: str, detalhe: str | None = None) -> None:
@@ -38,16 +34,6 @@ def _evento(db: Session, p: Pedido, u: Utilizador | None, accao: str, detalhe: s
 def _iniciar_sla(p: Pedido, inicio: datetime) -> None:
     p.sla_inicio = inicio
     p.prazo_resposta, p.prazo_resolucao = sla.prazos(p.prioridade, inicio)
-
-
-def _aprovador_para(db: Session, beneficiario: Utilizador) -> Utilizador:
-    if beneficiario.chefia_id:
-        return db.get(Utilizador, beneficiario.chefia_id)
-    # Sem chefia definida: a aprovação cai na administração da DSI.
-    admin = db.scalar(select(Utilizador).where(Utilizador.perfil == "admin", Utilizador.activo).order_by(Utilizador.id))
-    if admin is None:
-        raise ValueError("Não há chefia nem administrador DSI para aprovar este pedido.")
-    return admin
 
 
 def criar(db: Session, u: Utilizador, *, titulo: str, descricao: str, beneficiario_id: int | None = None,
@@ -77,15 +63,15 @@ def criar(db: Session, u: Utilizador, *, titulo: str, descricao: str, beneficiar
     detalhe = None if beneficiario.id == u.id else f"Em nome de {beneficiario.nome}"
     _evento(db, p, u, "criado", detalhe)
 
+    # Equipamento, licenças e acessos são aprovados pela DSI (perfil administrador).
     if item and item.requer_aprovacao:
-        aprovador = _aprovador_para(db, beneficiario)
-        p.aprovador_id = aprovador.id
-        if aprovador.id == u.id:
+        if u.perfil == "admin":
             p.estado = "novo"
-            _evento(db, p, u, "aprovado", "Aprovado automaticamente: pedido feito pelo próprio aprovador")
+            p.aprovador_id = u.id
+            _evento(db, p, u, "aprovado", "Aprovado automaticamente: pedido registado pela DSI")
         else:
             p.estado = "em_aprovacao"
-            _evento(db, p, None, "aguarda_aprovacao", f"Aprovador: {aprovador.nome}")
+            _evento(db, p, None, "aguarda_aprovacao")
     else:
         p.estado = "novo"
     if p.estado == "novo":
@@ -98,7 +84,7 @@ def accoes(u: Utilizador, p: Pedido) -> list[str]:
     """Acções que o utilizador pode executar neste momento (a interface mostra só estas)."""
     a: list[str] = []
     envolvido = u.id in (p.criado_por_id, p.beneficiario_id)
-    if p.estado == "em_aprovacao" and (u.id == p.aprovador_id or u.perfil == "admin"):
+    if p.estado == "em_aprovacao" and u.perfil == "admin":
         a += ["aprovar", "recusar"]
     if staff(u) and p.estado in ("novo", "em_curso", "aguarda_colaborador"):
         a += ["atribuir", "prioridade"]
@@ -122,6 +108,7 @@ def executar(db: Session, u: Utilizador, p: Pedido, accao: str, dados: dict) -> 
 
     if accao == "aprovar":
         p.estado = "novo"
+        p.aprovador_id = u.id
         _iniciar_sla(p, momento)  # o SLA conta a partir da aprovação
         _evento(db, p, u, "aprovado", motivo)
         notificacoes.novo_para_helpdesk(db, p)
@@ -129,6 +116,7 @@ def executar(db: Session, u: Utilizador, p: Pedido, accao: str, dados: dict) -> 
         if not motivo:
             raise ValueError("Indica o motivo da recusa.")
         p.estado = "recusado"
+        p.aprovador_id = u.id
         p.fechado_em = momento
         _evento(db, p, u, "recusado", motivo)
     elif accao in ("atribuir", "assumir"):

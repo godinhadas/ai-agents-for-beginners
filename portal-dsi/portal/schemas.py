@@ -5,8 +5,8 @@ from typing import Annotated, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, create_model
 
-Perfil = Literal["colaborador", "chefia", "helpdesk", "admin"]
-TipoPedido = Literal["incidente", "equipamento", "licenca", "acesso", "informacao"]
+Perfil = Literal["colaborador", "helpdesk", "admin"]
+TipoPedido = Literal["acesso", "anywhere", "equipamento", "licenca", "intervencao", "outro"]
 Prioridade = Literal["critica", "alta", "media", "baixa"]
 EstadoEquipamento = Literal["stock", "atribuido", "reparacao", "abatido"]
 
@@ -31,6 +31,9 @@ class UtilizadorIn(_Base):
 class ItemCatalogoIn(_Base):
     nome: str = Field(min_length=2, max_length=150)
     tipo: TipoPedido
+    descricao: str | None = Field(None, max_length=200)
+    icone: str = Field("caixa", max_length=20)
+    ordem: int = 100
     requer_aprovacao: bool = False
     prioridade_padrao: Prioridade = "media"
     activo: bool = True

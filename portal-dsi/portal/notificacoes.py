@@ -23,7 +23,7 @@ ESTADOS = {"em_aprovacao": "Em aprovação", "novo": "Novo", "em_curso": "Em cur
 # accao -> (quem recebe, frase do assunto)
 REGRAS = {
     "criado": (("criado_por", "beneficiario"), "Pedido registado"),
-    "aguarda_aprovacao": (("aprovador",), "Aprovação necessária"),
+    "aguarda_aprovacao": ((), "Aprovação necessária"),  # vai para os administradores DSI
     "aprovado": (("criado_por", "beneficiario"), "Pedido aprovado"),
     "recusado": (("criado_por", "beneficiario"), "Pedido recusado"),
     "atribuido": (("tecnico",), "Pedido atribuído a si"),
@@ -54,9 +54,9 @@ def _corpo(p: Pedido, frase: str, detalhe: str | None) -> str:
     """Email simples em HTML, com a identidade da empresa e compatível com o Outlook (tabelas e estilos inline)."""
     e = html.escape
     empresa = os.getenv("PORTAL_EMPRESA", "MHAIS")
-    portal = os.getenv("PORTAL_NOME", "Portal DSI")
+    portal = os.getenv("PORTAL_NOME", "Gestor de Pedidos DSI")
     direccao = os.getenv("PORTAL_DIRECCAO", "Direcção de Sistemas de Informação")
-    cor = os.getenv("PORTAL_COR_EMAIL", "#0b4f8a")
+    cor = os.getenv("PORTAL_COR_EMAIL", "#5b2a86")
     detalhe_html = f"<p style='white-space:pre-wrap;margin:16px 0'>{e(detalhe)}</p>" if detalhe else ""
     return f"""<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-family:Segoe UI,Arial,sans-serif;color:#1d2533">
 <tr><td style="background:{e(cor)};color:#ffffff;padding:14px 20px;font-size:16px;font-weight:bold">{e(empresa)} · {e(portal)}</td></tr>
@@ -88,6 +88,10 @@ def evento(db: Session, p: Pedido, autor: Utilizador | None, accao: str, detalhe
     if accao not in REGRAS:
         return
     papeis, frase = REGRAS[accao]
+    if accao == "aguarda_aprovacao":
+        admins = db.scalars(select(Utilizador).where(Utilizador.perfil == "admin", Utilizador.activo)).all()
+        _enfileirar(db, p, list(admins), frase, p.descricao, autor)
+        return
     # Pelos ids (e não pelas relações), porque a relação pode ainda não reflectir um id acabado de mudar.
     _enfileirar(db, p, [db.get(Utilizador, i) for papel in papeis if (i := getattr(p, f"{papel}_id"))],
                 frase, detalhe, autor)

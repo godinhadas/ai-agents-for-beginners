@@ -1,4 +1,4 @@
-"""API e interface web do Portal DSI."""
+"""API e interface web do Gestor de Pedidos DSI."""
 
 import asyncio
 import logging
@@ -32,16 +32,15 @@ STATIC = Path(__file__).parent / "static"
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     dbmod.init_db()
-    if os.getenv("PORTAL_SEED", "1") == "1":
-        with dbmod.SessionLocal() as db:
-            seed.carregar(db)
+    with dbmod.SessionLocal() as db:
+        seed.carregar(db)
     ciclo = asyncio.create_task(tarefas.correr_para_sempre()) if os.getenv("PORTAL_TAREFAS", "1") == "1" else None
     yield
     if ciclo:
         ciclo.cancel()
 
 
-app = FastAPI(title="Portal DSI MHAIS", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Gestor de Pedidos DSI", version="0.1.0", lifespan=lifespan)
 
 _segredo = os.getenv("PORTAL_SECRET_KEY")
 if not _segredo and auth.modo() == "entra":
@@ -146,7 +145,7 @@ def _licenca_out(l: Licenca) -> dict:
             "livres": max(l.quantidade - usadas, 0)}
 
 
-TODOS = ("colaborador", "chefia", "helpdesk", "admin")
+TODOS = ("colaborador", "helpdesk", "admin")
 for router in (
     crud("departamentos", Departamento, s.DepartamentoIn, s.DepartamentoUpdate, s.DepartamentoOut,
          leitura=TODOS, escrita=("admin",), pesquisa=("nome",), filtros=(), ordem=Departamento.nome),
@@ -156,7 +155,7 @@ for router in (
          filtros=("departamento_id", "perfil", "chefia_id", "activo"), ordem=Utilizador.nome, apagar=False),
     crud("catalogo", ItemCatalogo, s.ItemCatalogoIn, s.ItemCatalogoUpdate, s.ItemCatalogoOut,
          leitura=TODOS, escrita=("admin",), pesquisa=("nome",), filtros=("tipo", "activo"),
-         ordem=ItemCatalogo.nome, apagar=False),
+         ordem=ItemCatalogo.ordem, apagar=False),
     crud("equipamentos", Equipamento, s.EquipamentoIn, s.EquipamentoUpdate, s.EquipamentoOut,
          leitura=STAFF, escrita=STAFF, pesquisa=("etiqueta", "tipo", "marca", "modelo", "numero_serie"),
          filtros=("estado", "tipo", "utilizador_id"), ordem=Equipamento.etiqueta),
@@ -174,9 +173,10 @@ def config_publica():
     """Dados de identidade mostrados no portal (sem informação sensível)."""
     return {
         "empresa": os.getenv("PORTAL_EMPRESA", "MHAIS"),
-        "nome": os.getenv("PORTAL_NOME", "Portal DSI"),
+        "nome": os.getenv("PORTAL_NOME", "Gestor de Pedidos DSI"),
         "direccao": os.getenv("PORTAL_DIRECCAO", "Direcção de Sistemas de Informação"),
         "logo": os.getenv("PORTAL_LOGO", "/static/marca/logo.svg"),
+        "logo_cabecalho": os.getenv("PORTAL_LOGO_CABECALHO", "/static/marca/logo-branco.svg"),
         "contacto_email": os.getenv("PORTAL_CONTACTO_EMAIL") or os.getenv("PORTAL_CAIXA_HELPDESK"),
         "contacto_telefone": os.getenv("PORTAL_CONTACTO_TELEFONE"),
         "horario": os.getenv("PORTAL_HORARIO", "Segunda a sexta, 08:00 às 17:00"),
@@ -199,7 +199,7 @@ def auth_modo():
 def utilizadores_demo(db: Session = Depends(get_db)):
     if auth.modo() != "dev":
         raise HTTPException(404)
-    us = db.scalars(select(Utilizador).where(Utilizador.activo).order_by(Utilizador.perfil, Utilizador.nome))
+    us = db.scalars(select(Utilizador).where(Utilizador.activo).order_by(Utilizador.nome))
     return [{"id": u.id, "nome": u.nome, "perfil": u.perfil} for u in us]
 
 
@@ -254,13 +254,8 @@ def listar_pedidos(vista: str | None = None, estado: str | None = None, q: str |
     stmt = select(Pedido)
     if vista == "meus":
         stmt = stmt.where(or_(Pedido.criado_por_id == u.id, Pedido.beneficiario_id == u.id))
-    elif vista == "aprovar":
+    elif vista == "aprovar" and u.perfil == "admin":
         stmt = stmt.where(Pedido.estado == "em_aprovacao")
-        if u.perfil != "admin":
-            stmt = stmt.where(Pedido.aprovador_id == u.id)
-    elif vista == "equipa":
-        equipa = select(Utilizador.id).where(Utilizador.chefia_id == u.id)
-        stmt = stmt.where(Pedido.beneficiario_id.in_(equipa))
     elif vista == "atribuidos" and wf.staff(u):
         stmt = stmt.where(Pedido.tecnico_id == u.id)
     elif vista == "todos" and wf.staff(u):
@@ -370,7 +365,7 @@ def inicio(db: Session = Depends(get_db), u: Utilizador = Depends(utilizador_act
                       .order_by(Pedido.id.desc())).all()
     aprovar = select(Pedido).where(Pedido.estado == "em_aprovacao")
     if u.perfil != "admin":
-        aprovar = aprovar.where(Pedido.aprovador_id == u.id)
+        aprovar = aprovar.where(Pedido.id < 0)  # só a DSI aprova
     equipamentos = db.scalars(select(Equipamento).where(Equipamento.utilizador_id == u.id)).all()
     licencas = db.scalars(select(Licenca).join(AtribuicaoLicenca).where(AtribuicaoLicenca.utilizador_id == u.id)).all()
     return {

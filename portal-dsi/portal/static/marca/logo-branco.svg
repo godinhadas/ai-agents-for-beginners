@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="140" height="36" viewBox="0 0 140 36" role="img" aria-label="MHAIS">
+  <!-- Logotipo provisório (versão branca, para o cabeçalho roxo). Substituir pelo oficial com o mesmo nome. -->
+  <rect x="0" y="3" width="30" height="30" rx="8" fill="#fff"/>
+  <text x="15" y="24" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700" fill="#5b2a86" text-anchor="middle">M</text>
+  <text x="38" y="26" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" fill="#fff">MHAIS</text>
+</svg>

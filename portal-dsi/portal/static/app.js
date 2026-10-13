@@ -9,19 +9,51 @@ const ROTULOS = {
   em_aprovacao: "Em aprovação", novo: "Novo", em_curso: "Em curso", aguarda_colaborador: "A aguardar colaborador",
   resolvido: "Resolvido", fechado: "Fechado", recusado: "Recusado", cancelado: "Cancelado",
   critica: "Crítica", alta: "Alta", media: "Média", baixa: "Baixa",
-  incidente: "Incidente", equipamento: "Equipamento", licenca: "Licença / software", acesso: "Acesso", informacao: "Informação",
-  colaborador: "Colaborador", chefia: "Chefia", helpdesk: "Helpdesk", admin: "Administrador DSI",
+  acesso: "Acessos", anywhere: "Anywhere", equipamento: "Equipamento e gadgets", licenca: "Licenças e software",
+  intervencao: "Intervenção técnica", outro: "Outros",
+  colaborador: "Colaborador", helpdesk: "Helpdesk", admin: "Administrador DSI",
   stock: "Em stock", atribuido: "Atribuído", reparacao: "Em reparação", abatido: "Abatido",
   ok: "No prazo", em_risco: "Em risco", violado: "Fora de prazo", cumprido: "Cumprido", pausado: "Pausado", "n/a": "",
-  criado: "Pedido criado", aguarda_aprovacao: "A aguardar aprovação", aprovado: "Aprovado", atribuido_ev: "Atribuído",
+  criado: "Pedido criado", aguarda_aprovacao: "A aguardar aprovação da DSI", aprovado: "Aprovado",
   prioridade: "Prioridade alterada", reaberto: "Reaberto", equipamento_entregue: "Equipamento entregue",
   licenca_atribuida: "Licença atribuída", resposta_colaborador: "Resposta do colaborador",
 };
 const rot = (v) => ROTULOS[v] ?? v;
 const CLASSE = { em_aprovacao: "alerta", aguarda_colaborador: "alerta", resolvido: "ok", fechado: "", recusado: "perigo",
   cancelado: "", critica: "perigo", alta: "alerta", violado: "perigo", em_risco: "alerta", ok: "ok", cumprido: "ok",
-  stock: "ok", reparacao: "alerta", abatido: "perigo" };
+  stock: "ok", reparacao: "alerta", abatido: "perigo", novo: "marca", em_curso: "marca" };
 const etiqueta = (v) => (v && rot(v) ? `<span class="etiqueta ${CLASSE[v] ?? ""}">${esc(rot(v))}</span>` : "");
+const TIPOS = ["acesso", "anywhere", "equipamento", "licenca", "intervencao", "outro"];
+
+// Ícones de traço simples (24x24), desenhados para o portal.
+const ICONES = {
+  cadeado: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  utilizador: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  pasta: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  globo: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+  email: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+  chave: '<circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M15 8l2 2"/>',
+  alerta: '<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/>',
+  escudo: '<path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/>',
+  portatil: '<rect x="4" y="5" width="16" height="11" rx="1.5"/><path d="M2 19h20"/>',
+  monitor: '<rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/>',
+  rato: '<rect x="7" y="3" width="10" height="18" rx="5"/><path d="M12 7v3"/>',
+  pen: '<rect x="8" y="9" width="8" height="12" rx="1.5"/><path d="M10 9V4h4v5M11 6h.01M13 6h.01"/>',
+  telemovel: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>',
+  nuvem: '<path d="M7 18a5 5 0 0 1-.6-10A6 6 0 0 1 18 9a4.5 4.5 0 0 1-.5 9z"/>',
+  descarregar: '<path d="M12 3v12M7 10l5 5 5-5M4 21h16"/>',
+  insignia: '<circle cx="12" cy="9" r="6"/><path d="m8.5 14-1.5 7 5-3 5 3-1.5-7"/>',
+  ferramenta: '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/>',
+  definicoes: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
+  wifi: '<path d="M2 9a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 19.5h.01"/>',
+  impressora: '<path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/>',
+  ajuda: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 1-1 1.7M12 17h.01"/>',
+  caixa: '<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>',
+  mais: '<path d="M12 5v14M5 12h14"/>',
+  sair: '<path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 17l5-5-5-5M15 12H3"/>',
+  microsoft: '<path d="M3 3h8.5v8.5H3zM12.5 3H21v8.5h-8.5zM3 12.5h8.5V21H3zM12.5 12.5H21V21h-8.5z"/>',
+};
+const icone = (nome) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONES[nome] || ICONES.caixa}</svg>`;
 const $ = (id) => document.getElementById(id);
 
 async function api(caminho, opcoes = {}) {
@@ -48,10 +80,10 @@ const nomeDe = (ref, id) => { const o = (cache[ref] || []).find((x) => x.id === 
 // ---------- arranque e sessão ----------
 const nav = $("nav"), conteudo = $("conteudo");
 
-let cfg = { empresa: "MHAIS", nome: "Portal DSI", direccao: "", logo: "/static/marca/logo.svg" };
+let cfg = { empresa: "MHAIS", nome: "Gestor de Pedidos DSI", direccao: "", logo: "/static/marca/logo.svg", logo_cabecalho: "/static/marca/logo-branco.svg" };
 async function aplicarMarca() {
   try { cfg = await api("/api/config"); } catch { /* mantém os valores por omissão */ }
-  $("logo").src = cfg.logo;
+  $("logo").src = cfg.logo_cabecalho || cfg.logo;
   $("logo").alt = cfg.empresa;
   $("nome-portal").textContent = cfg.nome;
   document.title = `${cfg.nome} · ${cfg.empresa}`;
@@ -74,22 +106,18 @@ async function arrancar() {
 async function mostrarLogin() {
   nav.innerHTML = ""; $("utilizador").innerHTML = "";
   const { modo } = await api("/api/auth/modo");
+  const topo = `<img class="logo-grande" src="${esc(cfg.logo)}" alt="${esc(cfg.empresa)}"><h1>${esc(cfg.nome)}</h1>
+    <p>Acessos, Anywhere, equipamento, licenças e intervenções técnicas, num só sítio.</p>`;
   if (modo !== "dev") {
-    conteudo.innerHTML = `<section class="cartao login">
-      <img class="logo-grande" src="${esc(cfg.logo)}" alt="${esc(cfg.empresa)}">
-      <h1>${esc(cfg.nome)}</h1>
-      <p>Pedidos à ${esc(cfg.direccao || "DSI")}: incidentes, equipamentos, licenças e acessos.</p>
-      <button class="primario" onclick="location.href='/auth/login'">Entrar com a conta Microsoft da ${esc(cfg.empresa)}</button>
-      <div class="contactos">Sem acesso ao portal?${contactosHTML("<br>")}</div></section>`;
+    conteudo.innerHTML = `<section class="cartao login">${topo}
+      <button class="primario entrar" onclick="location.href='/auth/login'">${icone("microsoft")} Entrar com a conta Microsoft</button>
+      <div class="contactos">Sem acesso?${contactosHTML("<br>")}</div></section>`;
     return;
   }
   const us = await api("/api/auth/utilizadores-demo");
-  const grupos = ["admin", "helpdesk", "chefia", "colaborador"].map((p) => [p, us.filter((u) => u.perfil === p)]);
-  conteudo.innerHTML = `<section class="cartao login">
-    <img class="logo-grande" src="${esc(cfg.logo)}" alt="${esc(cfg.empresa)}">
-    <h1>${esc(cfg.nome)}</h1>
-    <p class="vazio">Modo de demonstração: escolhe com que utilizador queres entrar. Em produção, o acesso será feito com a conta Microsoft da MHAIS.</p>
-    ${grupos.map(([p, l]) => `<div class="grupo"><h2>${esc(rot(p))}</h2>${l.map((u) => `<button data-login="${u.id}">${esc(u.nome)}</button>`).join("")}</div>`).join("")}
+  conteudo.innerHTML = `<section class="cartao login">${topo}
+    <p class="vazio">Modo de teste, sem login Microsoft. Escolhe o utilizador:</p>
+    <div class="lista">${us.map((u) => `<button data-login="${u.id}"><span>${esc(u.nome)}</span><span class="etiqueta marca">${esc(rot(u.perfil))}</span></button>`).join("")}</div>
   </section>`;
   conteudo.querySelectorAll("[data-login]").forEach((b) => (b.onclick = async () => {
     await api("/api/auth/login", { method: "POST", body: JSON.stringify({ utilizador_id: Number(b.dataset.login) }) });
@@ -99,11 +127,11 @@ async function mostrarLogin() {
 }
 
 function desenharNav() {
-  const itens = [["inicio", "Início"], ["pedidos", "Pedidos"]];
-  if (staff()) itens.push(["painel", "Painel DSI"], ["equipamentos", "Equipamentos"], ["licencas", "Licenças"]);
+  const itens = [["inicio", "Início"], ["pedidos", staff() ? "Pedidos" : "Os meus pedidos"]];
+  if (staff()) itens.push(["painel", "Painel"], ["equipamentos", "Equipamentos"], ["licencas", "Licenças"]);
   if (eu.perfil === "admin") itens.push(["admin", "Administração"]);
   nav.innerHTML = itens.map(([id, l]) => `<button data-sec="${id}">${l}</button>`).join("");
-  $("utilizador").innerHTML = `<span>${esc(eu.nome)} · ${esc(rot(eu.perfil))}</span><button id="sair">Sair</button>`;
+  $("utilizador").innerHTML = `<span>${esc(eu.nome)}</span><button id="sair" class="botao" title="Sair">${icone("sair")} Sair</button>`;
   $("sair").onclick = async () => { await api("/api/auth/logout", { method: "POST" }); eu = null; location.hash = ""; mostrarLogin(); };
 }
 nav.addEventListener("click", (e) => { if (e.target.dataset.sec) location.hash = e.target.dataset.sec; });
@@ -115,9 +143,9 @@ conteudo.addEventListener("click", (e) => {
 
 async function mostrar() {
   const [sec, arg] = (location.hash.slice(1) || "inicio").split("/");
-  nav.querySelectorAll("button").forEach((b) => b.classList.toggle("activo", b.dataset.sec === (sec === "pedido" || sec === "novo" ? "pedidos" : sec)));
+  nav.querySelectorAll("button").forEach((b) => b.classList.toggle("activo", b.dataset.sec === (sec === "pedido" ? "pedidos" : sec === "novo" ? "inicio" : sec)));
   try {
-    const vistas = { inicio: vistaInicio, pedidos: vistaPedidos, pedido: () => vistaPedido(Number(arg)), novo: vistaNovo,
+    const vistas = { inicio: vistaInicio, pedidos: vistaPedidos, pedido: () => vistaPedido(Number(arg)), novo: () => vistaNovo(Number(arg)),
       painel: vistaPainel, equipamentos: () => vistaLista("equipamentos"), licencas: vistaLicencas, admin: () => vistaAdmin(arg || "utilizadores") };
     await (vistas[sec] || vistaInicio)();
   } catch (err) {
@@ -144,31 +172,43 @@ const barra = (r, frac, v) => `<div class="barra-h"><span>${esc(r)}</span><div c
 
 // ---------- início ----------
 async function vistaInicio() {
-  const d = await api("/api/inicio");
+  const [d, catalogo] = await Promise.all([api("/api/inicio"), api("/api/catalogo?activo=true")]);
+  const mosaicos = TIPOS.map((t) => {
+    const itens = catalogo.filter((c) => c.tipo === t);
+    if (!itens.length) return "";
+    return `<section class="categoria"><h2>${esc(rot(t))}</h2><div class="mosaicos">${itens.map((c) => `
+      <button class="mosaico" data-item="${c.id}">
+        <span class="icone">${icone(c.icone)}</span>
+        <strong>${esc(c.nome)}</strong>
+        ${c.descricao ? `<small>${esc(c.descricao)}</small>` : ""}
+        ${c.requer_aprovacao ? '<span class="aprov">Aprovação DSI</span>' : ""}
+      </button>`).join("")}</div></section>`;
+  }).join("");
   conteudo.innerHTML = `
-    <div class="cabecalho"><h1>Olá, ${esc(eu.nome.split(" ")[0])}</h1><button class="primario" onclick="location.hash='novo'">Novo pedido</button></div>
-    ${d.para_aprovar.length ? `<section class="cartao" style="margin-bottom:16px"><h2>Pedidos à espera da tua aprovação (${d.para_aprovar.length})</h2>${tabela(d.para_aprovar, COLS_PEDIDO, { clicavel: true })}</section>` : ""}
-    <section class="cartao" style="margin-bottom:16px"><h2>Os meus pedidos em curso</h2>${tabela(d.meus_pedidos, COLS_PEDIDO, { clicavel: true })}</section>
-    <div class="grelha">
+    <div class="saudacao"><h1>Olá, ${esc(eu.nome.split(" ")[0])}</h1><p>O que precisas hoje?</p></div>
+    ${d.para_aprovar.length ? `<section class="cartao" style="margin-bottom:24px;border-left:4px solid var(--primaria)"><h2>À espera da tua aprovação (${d.para_aprovar.length})</h2>${tabela(d.para_aprovar, COLS_PEDIDO, { clicavel: true })}</section>` : ""}
+    ${d.meus_pedidos.length ? `<section class="cartao" style="margin-bottom:24px"><h2>Os meus pedidos em curso</h2>${tabela(d.meus_pedidos, COLS_PEDIDO, { clicavel: true })}</section>` : ""}
+    ${mosaicos}
+    ${d.equipamentos.length || d.licencas.length ? `<div class="grelha" style="margin-top:8px">
       <section class="cartao"><h2>O meu equipamento</h2>${tabela(d.equipamentos, [["etiqueta", "Etiqueta"], ["tipo", "Tipo"], ["marca", "Marca"], ["modelo", "Modelo"]])}</section>
-      <section class="cartao"><h2>As minhas licenças</h2>${d.licencas.length ? `<ul>${d.licencas.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>` : '<p class="vazio">Sem licenças atribuídas.</p>'}</section>
-    </div>`;
+      <section class="cartao"><h2>As minhas licenças</h2>${d.licencas.length ? d.licencas.map((l) => `<span class="etiqueta marca" style="margin:0 6px 6px 0">${esc(l)}</span>`).join("") : '<p class="vazio">Sem licenças atribuídas.</p>'}</section>
+    </div>` : ""}`;
+  conteudo.querySelectorAll("[data-item]").forEach((b) => (b.onclick = () => (location.hash = `novo/${b.dataset.item}`)));
 }
 
 // ---------- lista de pedidos ----------
 let filtroPedidos = null;
 async function vistaPedidos() {
   const vistas = [["meus", "Os meus"]];
-  if (eu.perfil === "chefia" || eu.perfil === "admin") vistas.push(["equipa", "Da minha equipa"]);
-  vistas.push(["aprovar", "Para aprovar"]);
+  if (eu.perfil === "admin") vistas.push(["aprovar", "Para aprovar"]);
   if (staff()) vistas.push(["atribuidos", "Atribuídos a mim"], ["todos", "Todos"]);
   filtroPedidos ??= { vista: staff() ? "todos" : "meus", estado: "abertos", q: "" };
   const f = filtroPedidos;
   const params = new URLSearchParams({ vista: f.vista, estado: f.estado, q: f.q });
   const linhas = await api(`/api/pedidos?${params}`);
   conteudo.innerHTML = `
-    <div class="cabecalho"><h1>Pedidos</h1><button class="primario" onclick="location.hash='novo'">Novo pedido</button></div>
-    <div class="abas">${vistas.map(([v, l]) => `<button data-vista="${v}" class="${f.vista === v ? "activo" : ""}">${l}</button>`).join("")}</div>
+    <div class="cabecalho"><h1>${staff() ? "Pedidos" : "Os meus pedidos"}</h1><button class="primario" onclick="location.hash='inicio'">${icone("mais")} Novo pedido</button></div>
+    ${vistas.length > 1 ? `<div class="abas">${vistas.map(([v, l]) => `<button data-vista="${v}" class="${f.vista === v ? "activo" : ""}">${l}</button>`).join("")}</div>` : ""}
     <div class="barra">
       <input type="search" id="pesquisa" placeholder="Pesquisar por assunto, descrição ou PED-000123" value="${esc(f.q)}">
       <select id="estado" style="max-width:220px">
@@ -184,37 +224,36 @@ async function vistaPedidos() {
 }
 
 // ---------- novo pedido ----------
-async function vistaNovo() {
+async function vistaNovo(itemId) {
   const [catalogo, utilizadores] = await Promise.all([api("/api/catalogo?activo=true"), carregar("utilizadores", "/api/utilizadores?activo=true")]);
-  const tipos = ["incidente", "equipamento", "licenca", "acesso", "informacao"];
+  const item = catalogo.find((c) => c.id === itemId);
+  if (!item) { location.hash = "inicio"; return; }
   conteudo.innerHTML = `
-    <h1>Novo pedido</h1>
-    <form class="cartao" id="form-novo" style="max-width:760px;display:grid;gap:14px">
-      <label>Para quem é o pedido?
+    <form class="cartao" id="form-novo" style="max-width:760px;margin:0 auto;display:grid;gap:16px">
+      <div class="item-escolhido">
+        <span class="icone">${icone(item.icone)}</span>
+        <div style="flex:1"><strong>${esc(item.nome)}</strong><br><small style="color:var(--suave)">${esc(rot(item.tipo))}${item.requer_aprovacao ? " · requer aprovação da DSI" : ""}</small></div>
+        <button type="button" class="ligacao" onclick="location.hash='inicio'">Mudar</button>
+      </div>
+      <label class="campo">Para quem é?
         <select name="beneficiario_id">
-          <option value="${eu.id}">Para mim (${esc(eu.nome)})</option>
+          <option value="${eu.id}">Para mim</option>
           ${utilizadores.filter((u) => u.id !== eu.id).map((u) => `<option value="${u.id}">Em nome de ${esc(u.nome)}</option>`).join("")}
         </select></label>
-      <label>O que precisas? *
-        <select name="item_id" required><option value=""></option>
-          ${tipos.map((t) => `<optgroup label="${esc(rot(t))}">${catalogo.filter((c) => c.tipo === t).map((c) =>
-            `<option value="${c.id}">${esc(c.nome)}${c.requer_aprovacao ? " (requer aprovação da chefia)" : ""}</option>`).join("")}</optgroup>`).join("")}
-        </select></label>
-      <label>Assunto *<input name="titulo" required minlength="3" maxlength="200" placeholder="Resumo numa linha"></label>
-      <label>Descrição *<textarea name="descricao" required minlength="3" rows="6" placeholder="O que se passa, desde quando, mensagens de erro, para que precisas..."></textarea></label>
-      <label>Prioridade
-        <select name="prioridade"><option value="">Definida pelo tipo de pedido</option>
+      <label class="campo">Assunto *<input name="titulo" required minlength="3" maxlength="200" value="${esc(item.nome)}"></label>
+      <label class="campo">Descreve o pedido *<textarea name="descricao" required minlength="3" rows="6" placeholder="O que precisas ou o que se passa, desde quando, mensagens de erro, para que é necessário..."></textarea></label>
+      <label class="campo">Urgência
+        <select name="prioridade"><option value="">Normal (${esc(rot(item.prioridade_padrao))})</option>
           ${(staff() ? ["critica", "alta", "media", "baixa"] : ["alta", "media", "baixa"]).map((p) => `<option value="${p}">${rot(p)}</option>`).join("")}
         </select></label>
       <p class="erro" id="erro-novo"></p>
-      <div><button class="primario">Submeter pedido</button> <button type="button" onclick="history.back()">Cancelar</button></div>
+      <div style="display:flex;gap:8px"><button class="primario">Enviar pedido</button><button type="button" onclick="location.hash='inicio'">Cancelar</button></div>
     </form>`;
-  conteudo.querySelectorAll("#form-novo label").forEach((l) => { l.style.display = "flex"; l.style.flexDirection = "column"; l.style.gap = "4px"; l.style.fontSize = "13px"; l.style.color = "var(--suave)"; });
   $("form-novo").onsubmit = async (e) => {
     e.preventDefault();
     const f = e.target.elements;
     const corpo = { titulo: f.titulo.value, descricao: f.descricao.value, beneficiario_id: Number(f.beneficiario_id.value),
-      item_id: Number(f.item_id.value), prioridade: f.prioridade.value || null };
+      item_id: item.id, prioridade: f.prioridade.value || null };
     try {
       const r = await api("/api/pedidos", { method: "POST", body: JSON.stringify(corpo) });
       location.hash = `pedido/${r.id}`;
@@ -367,18 +406,20 @@ const ENTIDADES = {
   utilizadores: {
     titulo: "Utilizadores", singular: "utilizador",
     campos: [["nome", "Nome *", "text", true], ["email", "Email *", "email", true], ["departamento_id", "Departamento", "ref:departamentos"],
-      ["chefia_id", "Chefia directa (aprova os pedidos)", "ref:utilizadores"], ["perfil", "Perfil *", "select", true, ["colaborador", "chefia", "helpdesk", "admin"]],
+      ["perfil", "Perfil *", "select", true, ["colaborador", "helpdesk", "admin"]],
       ["activo", "Activo", "checkbox"]],
     colunas: [["nome", "Nome"], ["email", "Email"], ["departamento_id", "Departamento", (v) => esc(nomeDe("departamentos", v))],
-      ["chefia_id", "Chefia", (v) => esc(nomeDe("utilizadores", v))], ["perfil", "Perfil", rot], ["activo", "Activo", (v) => (v ? "Sim" : "Não")]],
+      ["perfil", "Perfil", rot], ["activo", "Activo", (v) => (v ? "Sim" : "Não")]],
     refs: ["departamentos", "utilizadores"],
   },
   catalogo: {
     titulo: "Catálogo de serviços", singular: "item",
-    campos: [["nome", "Nome *", "text", true], ["tipo", "Tipo *", "select", true, ["incidente", "equipamento", "licenca", "acesso", "informacao"]],
+    campos: [["nome", "Nome *", "text", true], ["tipo", "Categoria *", "select", true, ["acesso", "anywhere", "equipamento", "licenca", "intervencao", "outro"]],
+      ["descricao", "Descrição curta (aparece no mosaico)"], ["icone", "Ícone", "select", true, Object.keys(ICONES)], ["ordem", "Ordem", "number"],
       ["prioridade_padrao", "Prioridade por omissão", "select", true, ["critica", "alta", "media", "baixa"]],
-      ["requer_aprovacao", "Requer aprovação da chefia", "checkbox"], ["activo", "Activo", "checkbox"]],
-    colunas: [["nome", "Nome"], ["tipo", "Tipo", rot], ["prioridade_padrao", "Prioridade", etiqueta],
+      ["requer_aprovacao", "Requer aprovação da DSI", "checkbox"], ["activo", "Activo", "checkbox"]],
+    colunas: [["icone", "", (v) => `<span style="display:inline-block;width:20px;height:20px;color:var(--primaria)">${icone(v)}</span>`],
+      ["nome", "Nome"], ["tipo", "Categoria", rot], ["prioridade_padrao", "Prioridade", etiqueta],
       ["requer_aprovacao", "Aprovação", (v) => (v ? "Sim" : "Não")], ["activo", "Activo", (v) => (v ? "Sim" : "Não")]],
   },
   departamentos: { titulo: "Departamentos", singular: "departamento", campos: [["nome", "Nome *", "text", true]], colunas: [["nome", "Nome"]] },

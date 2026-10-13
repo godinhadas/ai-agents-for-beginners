@@ -1,4 +1,4 @@
-"""Modelo de dados do Portal DSI."""
+"""Modelo de dados do Gestor de Pedidos DSI."""
 
 from datetime import date, datetime
 
@@ -26,8 +26,8 @@ class Utilizador(Base):
     nome: Mapped[str] = mapped_column(String(150))
     email: Mapped[str] = mapped_column(String(150), unique=True)
     departamento_id: Mapped[int | None] = mapped_column(ForeignKey("departamentos.id"))
-    chefia_id: Mapped[int | None] = mapped_column(ForeignKey("utilizadores.id"))
-    perfil: Mapped[str] = mapped_column(String(20), default="colaborador")  # colaborador|chefia|helpdesk|admin
+    chefia_id: Mapped[int | None] = mapped_column(ForeignKey("utilizadores.id"))  # informativo (Entra ID)
+    perfil: Mapped[str] = mapped_column(String(20), default="colaborador")  # colaborador|helpdesk|admin
     activo: Mapped[bool] = mapped_column(Boolean, default=True)
     entra_oid: Mapped[str | None] = mapped_column(String(36), unique=True)  # id do objecto no Entra ID
 
@@ -40,7 +40,10 @@ class ItemCatalogo(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     nome: Mapped[str] = mapped_column(String(150))
-    tipo: Mapped[str] = mapped_column(String(20))  # incidente|equipamento|licenca|acesso|informacao
+    tipo: Mapped[str] = mapped_column(String(20))  # acesso|anywhere|equipamento|licenca|intervencao|outro
+    descricao: Mapped[str | None] = mapped_column(String(200))  # ajuda curta mostrada no mosaico
+    icone: Mapped[str] = mapped_column(String(20), default="caixa")
+    ordem: Mapped[int] = mapped_column(Integer, default=100)
     requer_aprovacao: Mapped[bool] = mapped_column(Boolean, default=False)
     prioridade_padrao: Mapped[str] = mapped_column(String(10), default="media")
     activo: Mapped[bool] = mapped_column(Boolean, default=True)

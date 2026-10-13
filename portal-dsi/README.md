@@ -1,6 +1,6 @@
-# Portal DSI MHAIS
+# Gestor de Pedidos DSI · MHAIS
 
-Portal interno de pedidos à DSI (Direcção de Sistemas de Informação): incidentes, equipamentos, licenças e acessos, com aprovação da chefia, SLA (prazos de resposta e resolução), inventário de equipamentos e licenças, login com a conta Microsoft e notificações e pedidos por email.
+Aplicação interna onde os colaboradores da MHAIS fazem todos os pedidos à DSI (Direcção de Sistemas de Informação): acessos ao Windows e a plataformas, Anywhere (acessos e apoio), equipamento e gadgets, licenças e software, reparações, instalações e outras intervenções técnicas. Inclui aprovação pela DSI, SLA (prazos de resposta e resolução), inventário de equipamentos e licenças, login com a conta Microsoft e notificações e pedidos por email.
 
 ## Arranque no Windows (PowerShell)
 
@@ -19,19 +19,23 @@ Testes: `.\.venv\Scripts\python.exe -m pytest`
 
 | Perfil | Pode fazer |
 |---|---|
-| Colaborador | Criar pedidos para si ou em nome de colegas; acompanhar os pedidos em que é requerente ou beneficiário |
-| Chefia | O mesmo, mais aprovar ou recusar os pedidos da equipa e ver os pedidos da equipa |
+| Colaborador | Fazer pedidos para si ou em nome de colegas; acompanhar os pedidos em que é requerente ou beneficiário |
 | Helpdesk | Tratar todos os pedidos, atribuir, comentar (inclui notas internas), entregar equipamento, atribuir licenças, gerir equipamentos |
-| Administrador DSI | Tudo, mais utilizadores, catálogo, departamentos e licenças |
+| Administrador DSI | Tudo, mais **aprovar ou recusar** pedidos, utilizadores, catálogo, departamentos e licenças |
 
 ## Circuito do pedido
 
-1. **Criação.** O colaborador escolhe um item do catálogo e indica para quem é o pedido.
-2. **Aprovação.** Se o item exige aprovação (equipamento, licença, acesso), o pedido vai para a chefia directa do beneficiário. Sem chefia definida, vai para o administrador DSI. Se quem pede já é o aprovador, o pedido fica aprovado automaticamente.
+1. **Pedido.** Na página inicial, o colaborador escolhe um mosaico (por exemplo "Monitor" ou "Erro no Anywhere") e indica para quem é.
+2. **Aprovação.** Os pedidos de acessos, equipamento e licenças são aprovados pela DSI (perfil administrador). Se o pedido for registado por um administrador, fica aprovado de imediato. Avarias, intervenções e apoio no Anywhere seguem directamente para o Helpdesk.
 3. **Tratamento.** O Helpdesk assume ou atribui, pode pedir informação ao colaborador, entrega o equipamento ou atribui a licença, e resolve indicando a solução.
 4. **Fecho.** O colaborador confirma e fecha, ou reabre. O pedido fecha automaticamente 5 dias depois de resolvido.
 
-Tudo fica no histórico do pedido: quem fez o quê e quando.
+O catálogo (mosaicos, descrições, ícones, ordem e quais exigem aprovação) altera-se em Administração > Catálogo.
+
+## Dados iniciais
+
+- A base começa **limpa**: só o catálogo de pedidos e, em modo de teste, o(s) administrador(es) indicados em `PORTAL_ADMINS`.
+- Com `PORTAL_SEED=demo` carrega utilizadores, equipamentos e pedidos fictícios, apenas para demonstração.
 
 ## SLA
 
@@ -60,7 +64,7 @@ Estes ficheiros e valores aparecem no cabeçalho, no ecrã de entrada, no rodap�
 | Função | Como funciona |
 |---|---|
 | Início de sessão | Conta Microsoft da MHAIS (Entra ID, OpenID Connect). Quem entra pela primeira vez fica como colaborador; os emails em `PORTAL_ADMINS` ficam administradores |
-| Colaboradores e chefias | Sincronizados do Entra ID a cada 24 h (nome, email, departamento, chefia, conta activa). Quem tem subordinados passa a chefia. Os perfis Helpdesk e Administrador são geridos no portal |
+| Colaboradores | Sincronizados do Entra ID a cada 24 h (nome, email, departamento, conta activa). Os perfis Helpdesk e Administrador são geridos no portal |
 | Notificações | Emails enviados pela caixa do Helpdesk em cada passo do pedido (registo, aprovação, atribuição, pedido de informação, resolução, comentários públicos). Notas internas nunca geram email |
 | Pedidos por email | Emails enviados para a caixa do Helpdesk por colaboradores conhecidos criam pedidos. Respostas com `[PED-000123]` no assunto entram como comentário. Remetentes externos e respostas automáticas são ignorados |
 
@@ -69,17 +73,17 @@ Sem Entra ID configurado, tudo funciona em modo de demonstração: os emails fic
 ### Configuração no Entra ID (uma vez, como administrador global)
 
 1. **Registo da aplicação.** Entra admin center > Applications > App registrations > New registration.
-   - Nome: `Portal DSI`; Supported account types: *Accounts in this organizational directory only*.
+   - Nome: `Gestor de Pedidos DSI`; Supported account types: *Accounts in this organizational directory only*.
    - Redirect URI, tipo Web: `https://<endereço do portal>/auth/callback`. Para testes no PC, acrescentar `http://localhost:8010/auth/callback`.
 2. **Segredo.** Certificates & secrets > New client secret. Anota o valor e a data de expiração (renovar antes de expirar, ou o login pára).
 3. **Permissões.** API permissions > Add > Microsoft Graph > Application permissions: `User.Read.All`, `Mail.Send`, `Mail.ReadWrite`. Depois, **Grant admin consent**. A permissão delegada `User.Read` já vem por omissão.
 4. **Limitar o acesso ao correio.** Sem este passo, a aplicação pode ler e enviar a partir de qualquer caixa da MHAIS. No Exchange Online PowerShell:
    ```powershell
    # Grupo de segurança com email, cujo único membro é a caixa do Helpdesk
-   New-DistributionGroup -Name "Portal DSI Caixas" -Type Security -PrimarySmtpAddress portal-dsi-caixas@<dominio> `
+   New-DistributionGroup -Name "Gestor de Pedidos DSI Caixas" -Type Security -PrimarySmtpAddress portal-dsi-caixas@<dominio> `
      -Members helpdesk@<dominio>
    New-ApplicationAccessPolicy -AppId <ENTRA_CLIENT_ID> -PolicyScopeGroupId portal-dsi-caixas@<dominio> `
-     -AccessRight RestrictAccess -Description "Portal DSI: só a caixa do Helpdesk"
+     -AccessRight RestrictAccess -Description "Gestor de Pedidos DSI: só a caixa do Helpdesk"
    Test-ApplicationAccessPolicy -AppId <ENTRA_CLIENT_ID> -Identity helpdesk@<dominio>        # Granted
    Test-ApplicationAccessPolicy -AppId <ENTRA_CLIENT_ID> -Identity antonio.godinho@<dominio> # Denied
    ```

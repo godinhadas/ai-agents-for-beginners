@@ -1,9 +1,8 @@
-"""Sincronização de colaboradores, departamentos e chefias a partir do Entra ID.
+"""Sincronização de colaboradores e departamentos a partir do Entra ID.
 
 Regras:
-- o Entra ID é a fonte de verdade para nome, email, departamento, chefia e estado (activo);
-- o perfil helpdesk/admin é gerido no portal e nunca é alterado pela sincronização;
-- quem tem subordinados passa a "chefia"; quem deixa de ter volta a "colaborador";
+- o Entra ID é a fonte de verdade para nome, email, departamento, chefia directa (informativa) e estado;
+- o perfil (colaborador, helpdesk, admin) é gerido no portal e nunca é alterado pela sincronização;
 - contas desactivadas no Entra ID ficam inactivas no portal (o histórico mantém-se);
 - com PORTAL_SYNC_GRUPO definido, só entram os membros desse grupo.
 
@@ -35,7 +34,7 @@ def _ler_utilizadores(graph) -> list[dict]:
 
 def sincronizar(db: Session, graph) -> dict:
     remotos = _ler_utilizadores(graph)
-    resumo = {"lidos": len(remotos), "criados": 0, "actualizados": 0, "desactivados": 0, "chefias": 0}
+    resumo = {"lidos": len(remotos), "criados": 0, "actualizados": 0, "desactivados": 0}
 
     deps = {d.nome.lower(): d for d in db.scalars(select(Departamento))}
 
@@ -74,20 +73,11 @@ def sincronizar(db: Session, graph) -> dict:
         por_oid[r["id"]] = u
     db.flush()
 
-    # Chefias: segundo passo, quando já existem todos os utilizadores.
-    com_subordinados: set[int] = set()
+    # Chefia directa (só informativa): segundo passo, quando já existem todos os utilizadores.
     for oid, u in por_oid.items():
         chefe = graph.get_opcional(f"/users/{oid}/manager", params={"$select": "id"})
         chefe_local = por_oid.get(chefe["id"]) if chefe else None
         u.chefia_id = chefe_local.id if chefe_local else None
-        if chefe_local:
-            com_subordinados.add(chefe_local.id)
-    for u in por_oid.values():
-        if u.perfil == "colaborador" and u.id in com_subordinados:
-            u.perfil = "chefia"
-            resumo["chefias"] += 1
-        elif u.perfil == "chefia" and u.id not in com_subordinados:
-            u.perfil = "colaborador"
     db.commit()
     log.info("Sincronização Entra ID: %s", resumo)
     return resumo

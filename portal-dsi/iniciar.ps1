@@ -1,4 +1,4 @@
-# Arranca o Portal DSI. Uso: .\iniciar.ps1            (porta 8010)
+# Arranca o Gestor de Pedidos DSI. Uso: .\iniciar.ps1            (porta 8010)
 #                           .\iniciar.ps1 -Porta 8020
 param([int]$Porta = 8010)
 Set-Location $PSScriptRoot
@@ -14,5 +14,5 @@ if ($LASTEXITCODE -ne 0) {
     if ($LASTEXITCODE -ne 0) { Write-Host "Falhou a instalacao das dependencias." -ForegroundColor Red; exit 1 }
 }
 if (-not (Test-Path .\.env)) { Copy-Item .env.example .env }
-Write-Host "Portal DSI em http://localhost:$Porta"
+Write-Host "Gestor de Pedidos DSI em http://localhost:$Porta"
 & $py -m uvicorn portal.main:app --host 127.0.0.1 --port $Porta --reload

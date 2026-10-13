@@ -1,16 +1,24 @@
 /* Identidade visual da MHAIS.
-   Substituir os valores abaixo pelas cores oficiais do manual de marca (hexadecimal).
-   --primaria: cor principal (botões, ligações, barras)
-   --primaria-txt: cor do texto sobre a cor principal */
+   Roxo provisório: substituir pelos códigos oficiais do manual de marca.
+   --primaria         cor principal (cabeçalho, botões, ligações)
+   --primaria-escura  variação para hover e cabeçalho
+   --primaria-suave   fundo claro para destaques e ícones
+   --primaria-txt     texto sobre a cor principal */
 :root {
-  --primaria: #0b4f8a;
+  --primaria: #5b2a86;
+  --primaria-escura: #45206a;
+  --primaria-suave: #f1eaf7;
   --primaria-txt: #ffffff;
-  --marca-fundo-cabecalho: #ffffff;
+  --cabecalho-fundo: #45206a;
+  --cabecalho-txt: #ffffff;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --primaria: #4b9be0;
-    --primaria-txt: #0b1220;
-    --marca-fundo-cabecalho: #1a212d;
+    --primaria: #b48ad9;
+    --primaria-escura: #9a6cc4;
+    --primaria-suave: #2a1f36;
+    --primaria-txt: #1a1022;
+    --cabecalho-fundo: #2a1840;
+    --cabecalho-txt: #ffffff;
   }
 }

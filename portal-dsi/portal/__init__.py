@@ -1,1 +1,1 @@
-"""Portal DSI: pedidos, equipamentos e licenças da MHAIS."""
+"""Gestor de Pedidos DSI da MHAIS: pedidos, equipamentos e licenças."""

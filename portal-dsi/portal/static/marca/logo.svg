@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="132" height="32" viewBox="0 0 132 32" role="img" aria-label="MHAIS">
-  <!-- Logotipo provisório. Substituir por logo.svg (ou logo.png) oficial da MHAIS, com o mesmo nome. -->
-  <rect x="0" y="2" width="28" height="28" rx="6" fill="#0b4f8a"/>
-  <text x="14" y="22" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="700" fill="#fff" text-anchor="middle">M</text>
-  <text x="36" y="23" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700" fill="#0b4f8a">MHAIS</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="140" height="36" viewBox="0 0 140 36" role="img" aria-label="MHAIS">
+  <!-- Logotipo provisório (versão a cores, para fundos claros). Substituir pelo oficial com o mesmo nome. -->
+  <rect x="0" y="3" width="30" height="30" rx="8" fill="#5b2a86"/>
+  <text x="15" y="24" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700" fill="#fff" text-anchor="middle">M</text>
+  <text x="38" y="26" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700" fill="#5b2a86">MHAIS</text>
 </svg>

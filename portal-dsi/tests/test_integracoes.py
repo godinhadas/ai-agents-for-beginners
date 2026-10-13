@@ -5,14 +5,14 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from portal import correio, db as dbmod, entra, notificacoes, pedidos as wf, sincronizacao
-from portal.models import Departamento, MensagemRecebida, Notificacao, Pedido, Utilizador
+from portal.models import Departamento, ItemCatalogo, MensagemRecebida, Notificacao, Pedido, Utilizador
 
 TENANT = "11111111-2222-3333-4444-555555555555"
 
 
 @pytest.fixture()
 def app_client(monkeypatch):
-    monkeypatch.setenv("PORTAL_SEED", "1")
+    monkeypatch.setenv("PORTAL_SEED", "demo")
     monkeypatch.setenv("PORTAL_AUTH_MODE", "dev")
     monkeypatch.setenv("PORTAL_TAREFAS", "0")
     monkeypatch.setenv("PORTAL_CAIXA_HELPDESK", "helpdesk@mhais.example")
@@ -60,13 +60,13 @@ class FakeGraph:
 def test_notificacoes_seguem_o_circuito(db):
     db.query(Notificacao).delete()
     db.commit()
-    joana, helena, paulo = user(db, "joana"), user(db, "helena"), user(db, "paulo")
-    monitor = db.scalar(select(Pedido.item_id).where(Pedido.titulo.like("%monitor%")))
+    joana, antonio, paulo = user(db, "joana"), user(db, "antonio"), user(db, "paulo")
+    monitor = db.scalar(select(ItemCatalogo.id).where(ItemCatalogo.nome == "Monitor"))
     p = wf.criar(db, joana, titulo="Monitor", descricao="x", item_id=monitor)
     dest = lambda: sorted(n.para.split("@")[0] for n in db.scalars(select(Notificacao).where(Notificacao.pedido_id == p.id)))
-    # a própria Joana não recebe aviso do que fez; a chefia recebe o pedido de aprovação
-    assert dest() == ["helena.tavares"]
-    wf.executar(db, helena, p, "aprovar", {})
+    # a própria Joana não recebe aviso do que fez; a DSI recebe o pedido de aprovação
+    assert dest() == ["antonio.godinho"]
+    wf.executar(db, antonio, p, "aprovar", {})
     assert "joana.sebastiao" in dest() and "paulo.cassule" in dest() and "edna.muhongo" in dest()
     wf.executar(db, paulo, p, "assumir", {})
     wf.comentar(db, paulo, p, "Notas internas", interno=True)
@@ -118,7 +118,7 @@ def test_caixa_cria_pedidos_e_comentarios(db):
     assert correio.processar_caixa(db, g) == {"criado": 1, "comentario": 1, "ignorado": 2}
     novo = db.scalar(select(Pedido).where(Pedido.origem == "email"))
     assert novo.titulo == "Scanner não digitaliza" and novo.beneficiario.email.startswith("teresa")
-    assert novo.estado == "novo" and novo.tipo == "incidente"
+    assert novo.estado == "novo" and novo.tipo == "outro"
     assert existente.comentarios[-1].texto == "Já reiniciei e continua."
     assert len(g.patches) == 4 and all(c == {"isRead": True} for _, c in g.patches)
     # se o email voltar a aparecer (ex.: falhou a marcação como lido), não é tratado outra vez
@@ -155,9 +155,9 @@ def test_sincronizacao_entra(db):
         opcionais={"/users/oid-col/manager": {"id": "oid-dir"}, "/users/oid-paulo/manager": {"id": "oid-col"}},
     )
     r = sincronizacao.sincronizar(db, g)
-    assert r["criados"] == 2 and r["desactivados"] == 1 and r["chefias"] == 2
+    assert r["criados"] == 2 and r["desactivados"] == 1
     carla, nuno = user(db, "carla"), user(db, "nuno")
-    assert carla.perfil == "chefia" and nuno.chefia_id == carla.id and nuno.email == "nuno.lopes@mhais.example"
+    assert carla.perfil == "colaborador" and nuno.chefia_id == carla.id and nuno.email == "nuno.lopes@mhais.example"
     assert db.get(Departamento, nuno.departamento_id).nome == "Actuariado"
     assert user(db, "paulo").perfil == "helpdesk"  # perfis da DSI não são mexidos
     assert paulo.entra_oid == "oid-paulo" and paulo.chefia_id == nuno.id

@@ -58,7 +58,7 @@ def processar_mensagem(db: Session, msg: dict) -> str:
         registo.pedido_id, registo.resultado = p.id, "comentario"
     else:
         titulo = NUMERO.sub("", assunto).strip() or "(sem assunto)"
-        p = wf.criar(db, u, titulo=titulo[:200], descricao=_texto(msg), tipo="incidente", origem="email")
+        p = wf.criar(db, u, titulo=titulo[:200], descricao=_texto(msg), tipo="outro", origem="email")
         registo.pedido_id, registo.resultado = p.id, "criado"
     db.add(registo)
     db.commit()
