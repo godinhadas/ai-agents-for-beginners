@@ -1,12 +1,12 @@
 /* Gestor de Pedidos DSI. As cores da marca estão em marca/marca.css. */
 :root {
-  --fundo: #f6f4f9; --cartao: #ffffff; --texto: #1f1a29; --suave: #6b6478; --linha: #e7e2ee;
+  --fundo: #f5f3f9; --cartao: #ffffff; --texto: #1f1530; --suave: #6b6478; --linha: #e7e2ee;
   --alerta: #b54708; --perigo: #c0262d; --ok: #067647; --sombra: 0 1px 2px rgb(31 26 41 / .06), 0 4px 16px rgb(31 26 41 / .06);
   --raio: 12px;
   font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; color: var(--texto);
 }
 @media (prefers-color-scheme: dark) {
-  :root { --fundo: #131018; --cartao: #1d1925; --texto: #ece8f2; --suave: #a59db3; --linha: #2f2939;
+  :root { --fundo: #120a1b; --cartao: #1c1328; --texto: #ece8f2; --suave: #a59db3; --linha: #2f2939;
           --alerta: #f79009; --perigo: #f97066; --ok: #47cd89; --sombra: 0 1px 2px rgb(0 0 0 / .4); }
 }
 * { box-sizing: border-box; }
@@ -20,13 +20,13 @@ a { color: var(--primaria); }
 header { display: flex; align-items: center; gap: 24px; padding: 0 20px; min-height: 64px; background: var(--cabecalho-fundo);
          color: var(--cabecalho-txt); position: sticky; top: 0; z-index: 2; overflow-x: auto; box-shadow: 0 2px 8px rgb(0 0 0 / .12); }
 .marca { display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit; white-space: nowrap; }
-.marca img { height: 34px; width: auto; display: block; }
+.marca img { height: 38px; width: auto; display: block; }
 .marca span { font-weight: 600; font-size: 15px; opacity: .9; border-left: 1px solid rgb(255 255 255 / .35); padding-left: 12px; }
 nav { display: flex; gap: 4px; }
 nav button { background: none; border: 0; padding: 8px 14px; border-radius: 999px; color: inherit; opacity: .8;
              cursor: pointer; font: inherit; font-size: 15px; white-space: nowrap; }
 nav button:hover { opacity: 1; background: rgb(255 255 255 / .1); }
-nav button.activo { opacity: 1; background: rgb(255 255 255 / .18); font-weight: 600; }
+nav button.activo { opacity: 1; background: var(--primaria); color: #fff; font-weight: 600; }
 .utilizador { margin-left: auto; display: flex; gap: 12px; align-items: center; white-space: nowrap; font-size: 14px; }
 .utilizador .botao { background: rgb(255 255 255 / .12); color: inherit; border-color: rgb(255 255 255 / .3); }
 
@@ -38,7 +38,7 @@ button:hover { border-color: var(--primaria); }
 button:active { transform: translateY(1px); }
 button:disabled { opacity: .5; cursor: not-allowed; }
 button.primario { background: var(--primaria); color: var(--primaria-txt); border-color: var(--primaria); font-weight: 600;
-                  box-shadow: 0 2px 6px rgb(91 42 134 / .25); }
+                  box-shadow: 0 2px 8px var(--sombra-marca); }
 button.primario:hover { background: var(--primaria-escura); }
 button.perigo { color: var(--perigo); border-color: currentColor; }
 button.ligacao { border: 0; background: none; color: var(--primaria); padding: 0; font-weight: 600; }
@@ -65,15 +65,16 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--primaria); 
 .erro { color: var(--perigo); font-size: 14px; min-height: 1em; margin: 8px 0 0; }
 
 /* ---------- mosaicos ---------- */
-.saudacao { margin: 4px 0 24px; }
-.saudacao h1 { font-size: 28px; margin: 0 0 4px; }
-.saudacao p { margin: 0; color: var(--suave); font-size: 16px; }
+.saudacao { margin: 0 0 28px; padding: 28px 28px 30px; border-radius: 16px; color: #fff;
+            background: var(--padrao-claro), linear-gradient(120deg, var(--beringela, #2b0e43) 0%, #7a3ec8 100%); }
+.saudacao h1 { font-size: 30px; margin: 0 0 4px; }
+.saudacao p { margin: 0; opacity: .85; font-size: 17px; }
 .categoria { margin: 0 0 24px; }
 .categoria h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--suave); margin: 0 0 10px; }
 .mosaicos { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
 .mosaico { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; text-align: left; padding: 16px;
            border-radius: var(--raio); border: 1px solid var(--linha); background: var(--cartao); box-shadow: var(--sombra); }
-.mosaico:hover { border-color: var(--primaria); box-shadow: 0 6px 20px rgb(91 42 134 / .15); transform: translateY(-2px); }
+.mosaico:hover { border-color: var(--primaria); box-shadow: 0 8px 24px var(--sombra-marca); transform: translateY(-2px); }
 .mosaico .icone { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center;
                   background: var(--primaria-suave); color: var(--primaria); }
 .mosaico .icone svg { width: 24px; height: 24px; }
@@ -84,6 +85,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--primaria); 
 /* ---------- indicadores ---------- */
 .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 16px; }
 .kpi { border-top: 4px solid var(--primaria); }
+.kpi .valor { color: var(--beringela, inherit); }
+@media (prefers-color-scheme: dark) { .kpi .valor { color: var(--texto); } }
 .kpi .rotulo { color: var(--suave); font-size: 13px; }
 .kpi .valor { font-size: 28px; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
 .kpi .nota { color: var(--suave); font-size: 12px; margin-top: 2px; }
@@ -129,8 +132,10 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .item-escolhido .icone svg { width: 24px; height: 24px; }
 
 /* ---------- entrada ---------- */
-.login { max-width: 460px; margin: 48px auto; text-align: center; }
-.login .logo-grande { height: 64px; width: auto; display: block; margin: 0 auto 16px; }
+body.ecra-entrada { background: var(--padrao) var(--fundo); }
+body.ecra-entrada header { display: none; }
+.login { max-width: 460px; margin: 64px auto; text-align: center; padding: 36px 32px; box-shadow: 0 20px 60px var(--sombra-marca); }
+.login .logo-grande { height: 76px; width: auto; display: block; margin: 0 auto 20px; }
 .login h1 { margin-bottom: 6px; }
 .login p { color: var(--suave); }
 .login .entrar { width: 100%; justify-content: center; padding: 13px; font-size: 16px; margin-top: 12px; }
@@ -156,3 +161,6 @@ footer { width: 100%; max-width: 1240px; margin: 0 auto; padding: 16px; color: v
   .barra-h { grid-template-columns: 100px 1fr 40px; }
   .saudacao h1 { font-size: 22px; }
 }
+body.ecra-entrada footer { border-top: 0; text-align: center; }
+body.ecra-entrada footer, body.ecra-entrada footer a { color: var(--texto); }
+.saudacao { background-position: right top, 0 0; }

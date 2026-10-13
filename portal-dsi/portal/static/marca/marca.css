@@ -1,24 +1,26 @@
-/* Identidade visual da MHAIS.
-   Roxo provisório: substituir pelos códigos oficiais do manual de marca.
-   --primaria         cor principal (cabeçalho, botões, ligações)
-   --primaria-escura  variação para hover e cabeçalho
-   --primaria-suave   fundo claro para destaques e ícones
-   --primaria-txt     texto sobre a cor principal */
+/* Identidade visual MHAIS Seguros (cores retiradas do logotipo e do padrão oficial).
+   Roxo MHAIS #7A3EC8 · Beringela #2B0E43 · Lilás de fundo #F5F3F9 */
 :root {
-  --primaria: #5b2a86;
-  --primaria-escura: #45206a;
-  --primaria-suave: #f1eaf7;
+  --primaria: #7a3ec8;
+  --primaria-escura: #5f2ba3;
+  --primaria-suave: #ece4f7;
   --primaria-txt: #ffffff;
-  --cabecalho-fundo: #45206a;
+  --beringela: #2b0e43;
+  --cabecalho-fundo: #2b0e43;
   --cabecalho-txt: #ffffff;
+  --fundo: #f5f3f9;
+  --sombra-marca: rgb(122 62 200 / .22);
+  --padrao: url("/static/marca/padrao.svg");
+  --padrao-claro: url("/static/marca/padrao-claro.svg");
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --primaria: #b48ad9;
-    --primaria-escura: #9a6cc4;
-    --primaria-suave: #2a1f36;
-    --primaria-txt: #1a1022;
-    --cabecalho-fundo: #2a1840;
-    --cabecalho-txt: #ffffff;
+    --primaria: #a97de3;
+    --primaria-escura: #9466d6;
+    --primaria-suave: #2c1a42;
+    --primaria-txt: #1a0b29;
+    --cabecalho-fundo: #1d0930;
+    --fundo: #120a1b;
+    --sombra-marca: rgb(0 0 0 / .4);
   }
 }

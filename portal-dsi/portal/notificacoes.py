@@ -56,10 +56,11 @@ def _corpo(p: Pedido, frase: str, detalhe: str | None) -> str:
     empresa = os.getenv("PORTAL_EMPRESA", "MHAIS")
     portal = os.getenv("PORTAL_NOME", "Gestor de Pedidos DSI")
     direccao = os.getenv("PORTAL_DIRECCAO", "Direcção de Sistemas de Informação")
-    cor = os.getenv("PORTAL_COR_EMAIL", "#5b2a86")
+    cor = os.getenv("PORTAL_COR_EMAIL", "#7a3ec8")
+    escura = os.getenv("PORTAL_COR_EMAIL_ESCURA", "#2b0e43")
     detalhe_html = f"<p style='white-space:pre-wrap;margin:16px 0'>{e(detalhe)}</p>" if detalhe else ""
     return f"""<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-family:Segoe UI,Arial,sans-serif;color:#1d2533">
-<tr><td style="background:{e(cor)};color:#ffffff;padding:14px 20px;font-size:16px;font-weight:bold">{e(empresa)} · {e(portal)}</td></tr>
+<tr><td style="background:{e(escura)};color:#ffffff;padding:16px 20px;font-size:16px;font-weight:bold;border-bottom:4px solid {e(cor)}">{e(empresa)} · {e(portal)}</td></tr>
 <tr><td style="padding:20px;font-size:14px;line-height:1.5">
 <p style="margin:0 0 12px;font-size:16px"><strong>{e(frase)}</strong></p>
 <p style="margin:0">{e(p.numero)} · {e(p.titulo)}<br>Para: {e(p.beneficiario.nome)}<br>Estado: {e(ESTADOS.get(p.estado, p.estado))}</p>

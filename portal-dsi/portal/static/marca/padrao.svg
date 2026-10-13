@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="70" height="53" viewBox="0 0 70 53">
+  <!-- Padrão de cruzes da MHAIS (cor herdada do fundo onde é aplicado: ver marca.css). -->
+  <path d="M35 14v25M22.5 26.5h25" stroke="#7a3ec8" stroke-opacity=".28" stroke-width="4"/>
+</svg>

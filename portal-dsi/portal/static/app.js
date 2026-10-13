@@ -80,7 +80,7 @@ const nomeDe = (ref, id) => { const o = (cache[ref] || []).find((x) => x.id === 
 // ---------- arranque e sessão ----------
 const nav = $("nav"), conteudo = $("conteudo");
 
-let cfg = { empresa: "MHAIS", nome: "Gestor de Pedidos DSI", direccao: "", logo: "/static/marca/logo.svg", logo_cabecalho: "/static/marca/logo-branco.svg" };
+let cfg = { empresa: "MHAIS", nome: "Gestor de Pedidos DSI", direccao: "", logo: "/static/marca/logo.png", logo_cabecalho: "/static/marca/logo-branco.png" };
 async function aplicarMarca() {
   try { cfg = await api("/api/config"); } catch { /* mantém os valores por omissão */ }
   $("logo").src = cfg.logo_cabecalho || cfg.logo;
@@ -105,6 +105,7 @@ async function arrancar() {
 
 async function mostrarLogin() {
   nav.innerHTML = ""; $("utilizador").innerHTML = "";
+  document.body.classList.add("ecra-entrada");
   const { modo } = await api("/api/auth/modo");
   const topo = `<img class="logo-grande" src="${esc(cfg.logo)}" alt="${esc(cfg.empresa)}"><h1>${esc(cfg.nome)}</h1>
     <p>Acessos, Anywhere, equipamento, licenças e intervenções técnicas, num só sítio.</p>`;
@@ -127,6 +128,7 @@ async function mostrarLogin() {
 }
 
 function desenharNav() {
+  document.body.classList.remove("ecra-entrada");
   const itens = [["inicio", "Início"], ["pedidos", staff() ? "Pedidos" : "Os meus pedidos"]];
   if (staff()) itens.push(["painel", "Painel"], ["equipamentos", "Equipamentos"], ["licencas", "Licenças"]);
   if (eu.perfil === "admin") itens.push(["admin", "Administração"]);
