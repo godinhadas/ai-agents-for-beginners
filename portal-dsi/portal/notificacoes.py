@@ -16,6 +16,9 @@ from .models import Notificacao, Pedido, Utilizador, agora
 
 log = logging.getLogger("portal.email")
 MAX_TENTATIVAS = 5
+ESTADOS = {"em_aprovacao": "Em aprovação", "novo": "Novo", "em_curso": "Em curso",
+           "aguarda_colaborador": "A aguardar colaborador", "resolvido": "Resolvido", "fechado": "Fechado",
+           "recusado": "Recusado", "cancelado": "Cancelado"}
 
 # accao -> (quem recebe, frase do assunto)
 REGRAS = {
@@ -48,17 +51,24 @@ def assunto(p: Pedido, frase: str) -> str:
 
 
 def _corpo(p: Pedido, frase: str, detalhe: str | None) -> str:
+    """Email simples em HTML, com a identidade da empresa e compatível com o Outlook (tabelas e estilos inline)."""
     e = html.escape
-    linhas = [
-        f"<p><strong>{e(frase)}</strong></p>",
-        f"<p>{e(p.numero)} · {e(p.titulo)}<br>Para: {e(p.beneficiario.nome)}<br>Estado: {e(p.estado)}</p>",
-    ]
-    if detalhe:
-        linhas.append(f"<p style='white-space:pre-wrap'>{e(detalhe)}</p>")
-    linhas.append(f"<p><a href='{e(_link(p))}'>Abrir o pedido no Portal DSI</a></p>")
-    linhas.append("<p style='color:#667085;font-size:12px'>Pode responder a este email para acrescentar um comentário "
-                  "ao pedido. Mantenha o número entre parênteses rectos no assunto.</p>")
-    return "\n".join(linhas)
+    empresa = os.getenv("PORTAL_EMPRESA", "MHAIS")
+    portal = os.getenv("PORTAL_NOME", "Portal DSI")
+    direccao = os.getenv("PORTAL_DIRECCAO", "Direcção de Sistemas de Informação")
+    cor = os.getenv("PORTAL_COR_EMAIL", "#0b4f8a")
+    detalhe_html = f"<p style='white-space:pre-wrap;margin:16px 0'>{e(detalhe)}</p>" if detalhe else ""
+    return f"""<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-family:Segoe UI,Arial,sans-serif;color:#1d2533">
+<tr><td style="background:{e(cor)};color:#ffffff;padding:14px 20px;font-size:16px;font-weight:bold">{e(empresa)} · {e(portal)}</td></tr>
+<tr><td style="padding:20px;font-size:14px;line-height:1.5">
+<p style="margin:0 0 12px;font-size:16px"><strong>{e(frase)}</strong></p>
+<p style="margin:0">{e(p.numero)} · {e(p.titulo)}<br>Para: {e(p.beneficiario.nome)}<br>Estado: {e(ESTADOS.get(p.estado, p.estado))}</p>
+{detalhe_html}
+<p style="margin:20px 0"><a href="{e(_link(p))}" style="background:{e(cor)};color:#ffffff;padding:10px 16px;text-decoration:none;border-radius:4px">Abrir o pedido</a></p>
+<p style="color:#667085;font-size:12px;margin:0">Pode responder a este email para acrescentar um comentário ao pedido. Mantenha o número entre parênteses rectos no assunto.</p>
+</td></tr>
+<tr><td style="padding:12px 20px;border-top:1px solid #e3e7ee;color:#667085;font-size:12px">{e(empresa)} · {e(direccao)}</td></tr>
+</table>"""
 
 
 def _enfileirar(db: Session, p: Pedido, destinatarios: list[Utilizador], frase: str, detalhe: str | None,

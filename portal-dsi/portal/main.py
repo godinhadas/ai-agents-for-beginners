@@ -167,6 +167,27 @@ for router in (
     app.include_router(router)
 
 
+# ---------- identidade ----------
+
+@app.get("/api/config", tags=["auth"])
+def config_publica():
+    """Dados de identidade mostrados no portal (sem informação sensível)."""
+    return {
+        "empresa": os.getenv("PORTAL_EMPRESA", "MHAIS"),
+        "nome": os.getenv("PORTAL_NOME", "Portal DSI"),
+        "direccao": os.getenv("PORTAL_DIRECCAO", "Direcção de Sistemas de Informação"),
+        "logo": os.getenv("PORTAL_LOGO", "/static/marca/logo.svg"),
+        "contacto_email": os.getenv("PORTAL_CONTACTO_EMAIL") or os.getenv("PORTAL_CAIXA_HELPDESK"),
+        "contacto_telefone": os.getenv("PORTAL_CONTACTO_TELEFONE"),
+        "horario": os.getenv("PORTAL_HORARIO", "Segunda a sexta, 08:00 às 17:00"),
+    }
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    return FileResponse(STATIC / "marca" / "favicon.svg", media_type="image/svg+xml")
+
+
 # ---------- sessão ----------
 
 @app.get("/api/auth/modo", tags=["auth"])

@@ -48,7 +48,23 @@ const nomeDe = (ref, id) => { const o = (cache[ref] || []).find((x) => x.id === 
 // ---------- arranque e sessão ----------
 const nav = $("nav"), conteudo = $("conteudo");
 
+let cfg = { empresa: "MHAIS", nome: "Portal DSI", direccao: "", logo: "/static/marca/logo.svg" };
+async function aplicarMarca() {
+  try { cfg = await api("/api/config"); } catch { /* mantém os valores por omissão */ }
+  $("logo").src = cfg.logo;
+  $("logo").alt = cfg.empresa;
+  $("nome-portal").textContent = cfg.nome;
+  document.title = `${cfg.nome} · ${cfg.empresa}`;
+  $("rodape").innerHTML = `${esc(cfg.empresa)} · ${esc(cfg.direccao)}${contactosHTML(" · ")}`;
+}
+const contactosHTML = (sep) => [
+  cfg.contacto_email && `Helpdesk: <a href="mailto:${esc(cfg.contacto_email)}">${esc(cfg.contacto_email)}</a>`,
+  cfg.contacto_telefone && `Tel. ${esc(cfg.contacto_telefone)}`,
+  cfg.horario && esc(cfg.horario),
+].filter(Boolean).map((x) => sep + x).join("");
+
 async function arrancar() {
+  if (!arrancar.feito) { arrancar.feito = true; await aplicarMarca(); }
   try { eu = await api("/api/eu"); } catch { eu = null; }
   if (!eu) return mostrarLogin();
   desenharNav();
@@ -59,15 +75,19 @@ async function mostrarLogin() {
   nav.innerHTML = ""; $("utilizador").innerHTML = "";
   const { modo } = await api("/api/auth/modo");
   if (modo !== "dev") {
-    conteudo.innerHTML = `<section class="cartao login"><h1>Portal DSI</h1>
-      <p>Pedidos à DSI: incidentes, equipamentos, licenças e acessos.</p>
-      <button class="primario" onclick="location.href='/auth/login'">Entrar com a conta Microsoft da MHAIS</button></section>`;
+    conteudo.innerHTML = `<section class="cartao login">
+      <img class="logo-grande" src="${esc(cfg.logo)}" alt="${esc(cfg.empresa)}">
+      <h1>${esc(cfg.nome)}</h1>
+      <p>Pedidos à ${esc(cfg.direccao || "DSI")}: incidentes, equipamentos, licenças e acessos.</p>
+      <button class="primario" onclick="location.href='/auth/login'">Entrar com a conta Microsoft da ${esc(cfg.empresa)}</button>
+      <div class="contactos">Sem acesso ao portal?${contactosHTML("<br>")}</div></section>`;
     return;
   }
   const us = await api("/api/auth/utilizadores-demo");
   const grupos = ["admin", "helpdesk", "chefia", "colaborador"].map((p) => [p, us.filter((u) => u.perfil === p)]);
   conteudo.innerHTML = `<section class="cartao login">
-    <h1>Portal DSI</h1>
+    <img class="logo-grande" src="${esc(cfg.logo)}" alt="${esc(cfg.empresa)}">
+    <h1>${esc(cfg.nome)}</h1>
     <p class="vazio">Modo de demonstração: escolhe com que utilizador queres entrar. Em produção, o acesso será feito com a conta Microsoft da MHAIS.</p>
     ${grupos.map(([p, l]) => `<div class="grupo"><h2>${esc(rot(p))}</h2>${l.map((u) => `<button data-login="${u.id}">${esc(u.nome)}</button>`).join("")}</div>`).join("")}
   </section>`;

@@ -3,6 +3,7 @@
 from datetime import date, timedelta
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from . import pedidos as wf, sla
@@ -10,8 +11,18 @@ from .models import Departamento, Equipamento, ItemCatalogo, Licenca, Atribuicao
 
 
 def carregar(db: Session) -> bool:
-    if db.scalar(select(Utilizador.id).limit(1)) is not None:
+    """Carrega a demonstração só numa base vazia. Seguro se dois arranques correrem em simultâneo."""
+    if any(db.scalar(select(m.id).limit(1)) is not None for m in (Utilizador, Departamento, ItemCatalogo)):
         return False
+    try:
+        _carregar(db)
+    except IntegrityError:
+        db.rollback()  # outro processo carregou primeiro
+        return False
+    return True
+
+
+def _carregar(db: Session) -> None:
 
     dep = {n: Departamento(nome=n) for n in
            ("DSI", "Comercial", "Sinistros", "Financeira", "Recursos Humanos", "Administração")}
@@ -132,4 +143,3 @@ def carregar(db: Session) -> bool:
                   descricao="Ficheiro de reconciliação bancária com 80 MB.", item_id=cat["Avaria ou erro em computador"].id)
     wf.executar(db, hd2, p5, "assumir", {})
     wf.executar(db, hd2, p5, "resolver", {"motivo": "Instalada versão 64 bits do Office e reparado o ficheiro."})
-    return True

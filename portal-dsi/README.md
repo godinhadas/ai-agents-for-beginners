@@ -44,6 +44,17 @@ Tudo fica no histórico do pedido: quem fez o quê e quando.
 
 Horas úteis: segunda a sexta, das 08:00 às 17:00 (feriados ainda não considerados). O prazo conta a partir da aprovação, quando a há. Só a DSI pode classificar um pedido como crítico.
 
+## Identidade visual (MHAIS)
+
+| O quê | Onde |
+|---|---|
+| Logotipo | Substituir `portal/static/marca/logo.svg` pelo logotipo oficial (SVG de preferência; PNG também serve, indicando `PORTAL_LOGO=/static/marca/logo.png`). Altura de referência: 32 px no cabeçalho, 56 px no ecrã de entrada |
+| Ícone do separador | `portal/static/marca/favicon.svg` |
+| Cores | `portal/static/marca/marca.css` (cor principal e texto sobre ela) e `PORTAL_COR_EMAIL` no `.env` (barra dos emails) |
+| Nome, direcção e contactos do Helpdesk | `PORTAL_EMPRESA`, `PORTAL_NOME`, `PORTAL_DIRECCAO`, `PORTAL_CONTACTO_EMAIL`, `PORTAL_CONTACTO_TELEFONE`, `PORTAL_HORARIO` no `.env` |
+
+Estes ficheiros e valores aparecem no cabeçalho, no ecrã de entrada, no rodapé e nos emails. Não é preciso mexer no código.
+
 ## Integração com o Microsoft 365
 
 | Função | Como funciona |

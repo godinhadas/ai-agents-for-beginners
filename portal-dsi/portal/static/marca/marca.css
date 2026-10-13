@@ -1,0 +1,16 @@
+/* Identidade visual da MHAIS.
+   Substituir os valores abaixo pelas cores oficiais do manual de marca (hexadecimal).
+   --primaria: cor principal (botões, ligações, barras)
+   --primaria-txt: cor do texto sobre a cor principal */
+:root {
+  --primaria: #0b4f8a;
+  --primaria-txt: #ffffff;
+  --marca-fundo-cabecalho: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --primaria: #4b9be0;
+    --primaria-txt: #0b1220;
+    --marca-fundo-cabecalho: #1a212d;
+  }
+}

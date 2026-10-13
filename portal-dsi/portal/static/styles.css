@@ -97,3 +97,14 @@ menu { display: flex; justify-content: flex-end; gap: 8px; padding: 0; margin: 1
 .comentario p { margin: 6px 0 0; white-space: pre-wrap; }
 .duas-colunas { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
 @media (max-width: 900px) { .duas-colunas { grid-template-columns: 1fr; } .utilizador span { display: none; } }
+
+/* ---------- Marca ---------- */
+header { background: var(--marca-fundo-cabecalho, var(--cartao)); }
+.marca { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--texto); }
+.marca img { height: 32px; width: auto; display: block; }
+.marca span { color: var(--suave); font-weight: 600; font-size: 15px; border-left: 1px solid var(--linha); padding-left: 10px; }
+footer { max-width: 1280px; margin: 0 auto; padding: 16px; color: var(--suave); font-size: 13px; border-top: 1px solid var(--linha); }
+.login .logo-grande { height: 56px; width: auto; display: block; margin-bottom: 16px; }
+.login .contactos { margin-top: 20px; font-size: 13px; color: var(--suave); }
+@media (max-width: 640px) { .marca span { display: none; } }
+footer a { color: var(--primaria); }
