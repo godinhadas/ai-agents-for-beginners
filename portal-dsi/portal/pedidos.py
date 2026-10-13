@@ -65,7 +65,8 @@ def criar(db: Session, u: Utilizador, *, titulo: str | None = None, descricao: s
     titulo = (titulo or "").strip()
     if len(titulo) < 3:
         base = item.nome if item else "Pedido"
-        titulo = f"{base}: {formularios.resumo(respostas)}" if respostas else base
+        detalhe = formularios.resumo(respostas)
+        titulo = f"{base}: {detalhe}" if detalhe else base
     titulo = titulo[:200]
     prioridade = prioridade or (item.prioridade_padrao if item else "media")
     if prioridade == "critica" and not staff(u):

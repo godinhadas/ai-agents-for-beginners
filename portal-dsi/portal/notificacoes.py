@@ -16,8 +16,8 @@ from .models import Notificacao, Pedido, Utilizador, agora
 
 log = logging.getLogger("portal.email")
 MAX_TENTATIVAS = 5
-ESTADOS = {"em_aprovacao": "Em aprovação", "novo": "Novo", "em_curso": "Em curso",
-           "aguarda_colaborador": "A aguardar colaborador", "resolvido": "Resolvido", "fechado": "Fechado",
+ESTADOS = {"em_aprovacao": "Em aprovação", "novo": "Registado", "em_curso": "Em tratamento",
+           "aguarda_colaborador": "Aguarda resposta", "resolvido": "Resolvido", "fechado": "Fechado",
            "recusado": "Recusado", "cancelado": "Cancelado"}
 
 # accao -> (quem recebe, frase do assunto)

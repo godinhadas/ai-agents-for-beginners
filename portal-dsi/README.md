@@ -23,6 +23,16 @@ Testes: `.\.venv\Scripts\python.exe -m pytest`
 | Helpdesk | Tratar todos os pedidos, atribuir, comentar (inclui notas internas), entregar equipamento, atribuir licenças, gerir equipamentos |
 | Administrador DSI | Tudo, mais **aprovar ou recusar** pedidos, utilizadores, catálogo, departamentos e licenças |
 
+## Navegação por perfil
+
+| Perfil | Menus (por esta ordem) | Abre em |
+|---|---|---|
+| Colaborador | Novo pedido · Os meus pedidos | Novo pedido |
+| Helpdesk | Fila de pedidos · Novo pedido · Painel | Fila de pedidos |
+| Administrador DSI | Painel · Fila de pedidos · Novo pedido · Administração | Painel |
+
+Todas as páginas seguem o mesmo padrão: título e explicação no topo, acção principal à direita, filtros sempre na mesma ordem (separadores, estado, pesquisa), confirmações e mensagens dentro do portal. Os números a vermelho nos menus indicam o que espera por ti (pedidos para aprovar, sem técnico, ou a aguardar a tua resposta). Em cada pedido, a barra de etapas mostra onde está: Registado, Aprovação DSI, Em tratamento, Resolvido, Fechado.
+
 ## Circuito do pedido
 
 1. **Pedido.** Na página inicial, o colaborador escolhe um mosaico (por exemplo "Monitor" ou "Erro no Anywhere") e indica para quem é.
@@ -30,11 +40,11 @@ Testes: `.\.venv\Scripts\python.exe -m pytest`
 3. **Tratamento.** O Helpdesk assume ou atribui, pode pedir informação ao colaborador, entrega o equipamento ou atribui a licença, e resolve indicando a solução.
 4. **Fecho.** O colaborador confirma e fecha, ou reabre. O pedido fecha automaticamente 5 dias depois de resolvido.
 
-O catálogo (mosaicos, descrições, ícones, ordem e quais exigem aprovação) altera-se em Administração > Catálogo.
+O catálogo (mosaicos, descrições, ícones, ordem, quais exigem aprovação e as perguntas de cada um) altera-se em Administração > Catálogo, com um editor visual: pergunta, tipo de resposta e uma opção por linha.
 
 ## Formulários por cliques
 
-Cada item do catálogo tem perguntas com opções para escolher (por exemplo, em "Desbloquear conta": que conta e o que se passa; em "Instalação de software": a lista de programas padrão, com campo "Outro" para escrever o que não está na lista). O assunto do pedido é gerado a partir das escolhas e a descrição passa a opcional. As perguntas e opções editam-se em Administração > Catálogo, no campo "Formulário (JSON)".
+Cada item do catálogo tem perguntas com opções para escolher (por exemplo, em "Desbloquear conta": que conta e o que se passa; em "Instalação de software": a lista de programas padrão, com campo "Outro" para escrever o que não está na lista). O assunto do pedido é gerado a partir das escolhas e a descrição passa a opcional. As perguntas e opções editam-se em Administração > Catálogo, no editor visual de perguntas.
 
 Qualquer colaborador pode pedir para outra pessoa: "Para outra pessoa" e escolher o nome.
 

@@ -359,6 +359,23 @@ def remover_atribuicao(licenca_id: int, utilizador_id: int, db: Session = Depend
 
 # ---------- painéis ----------
 
+@app.get("/api/contadores", tags=["painel"])
+def contadores(db: Session = Depends(get_db), u: Utilizador = Depends(utilizador_actual)):
+    """Números para os menus: o que espera por mim."""
+    abertos = Pedido.estado.in_(wf.ABERTOS)
+    contar = lambda *c: db.scalar(select(func.count()).select_from(Pedido).where(*c))  # noqa: E731
+    r = {"meus": contar(abertos, or_(Pedido.criado_por_id == u.id, Pedido.beneficiario_id == u.id)),
+         "aguardam_resposta": contar(Pedido.estado == "aguarda_colaborador",
+                                     or_(Pedido.criado_por_id == u.id, Pedido.beneficiario_id == u.id))}
+    if wf.staff(u):
+        r["atribuidos"] = contar(abertos, Pedido.tecnico_id == u.id)
+        r["sem_tecnico"] = contar(Pedido.estado.in_(("novo", "em_curso", "aguarda_colaborador")), Pedido.tecnico_id.is_(None))
+        r["todos"] = contar(abertos)
+    if u.perfil == "admin":
+        r["aprovar"] = contar(Pedido.estado == "em_aprovacao")
+    return r
+
+
 @app.get("/api/inicio", tags=["painel"])
 def inicio(db: Session = Depends(get_db), u: Utilizador = Depends(utilizador_actual)):
     """Página inicial de qualquer colaborador."""

@@ -97,7 +97,7 @@ FORMULARIOS = {
     "Computador": (
         [_o("o_que", "O que é preciso?", ["Novo", "Substituição", "Empréstimo temporário"]),
          _o("tipo", "Tipo", ["Portátil", "Desktop"])], None),
-    "Monitor": ([_o("quantidade", "Quantos?", ["1", "2"])], None),
+    "Monitor": ([_o("quantidade", "Quantos?", ["1 monitor", "2 monitores"])], None),
     "Periféricos": ([_m("itens", "O que é preciso?", ["Rato", "Teclado", "Headset", "Webcam", "Docking station",
                                                       "Carregador"])], None),
     "Pen drive ou disco externo": ([_o("capacidade", "Capacidade", ["32 GB", "64 GB", "128 GB", "Disco externo 1 TB"])],
@@ -231,7 +231,7 @@ def _demo(db: Session) -> None:
     wf.executar(db, hd1, p1, "assumir", {})
     wf.comentar(db, hd1, p1, "Vou verificar o perfil do Outlook e o registo no Entra ID.")
     wf.criar(db, c2, titulo="Preciso de um segundo monitor", descricao="Para trabalhar com o simulador e o email.",
-             item_id=_item(db, "Monitor"), dados={"quantidade": "1"})
+             item_id=_item(db, "Monitor"), dados={"quantidade": "1 monitor"})
     wf.criar(db, c3, titulo="Erro ao emitir recibo no Anywhere",
              descricao="Ao emitir o recibo da apólice aparece 'erro de validação'.", item_id=_item(db, "Erro no Anywhere"),
              dados={"modulo": "Recibos e cobranças", "impacto": "Consigo contornar"})

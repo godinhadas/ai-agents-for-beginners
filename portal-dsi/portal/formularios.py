@@ -80,4 +80,4 @@ def linhas(campos_json: str | None, dados_json: str | None) -> list[dict]:
 
 def resumo(dados: dict) -> str:
     partes = [", ".join(v) if isinstance(v, list) else str(v) for v in dados.values()]
-    return " · ".join(partes)[:150]
+    return " · ".join(p for p in partes if p and not p.isdigit())[:150]

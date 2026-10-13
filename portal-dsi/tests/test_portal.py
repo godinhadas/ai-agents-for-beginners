@@ -106,7 +106,7 @@ def test_pedido_em_nome_de_outro_com_aprovacao_da_dsi_e_entrega(app_client):
     entrar(app_client, "paulo.cassule")
     joana = uid("joana.sebastiao")
     r = app_client.post("/api/pedidos", json={"titulo": "Monitor adicional", "descricao": "Pedido por telefone",
-                                               "beneficiario_id": joana, "item_id": item(app_client, "Monitor"), "dados": {"quantidade": "1"}})
+                                               "beneficiario_id": joana, "item_id": item(app_client, "Monitor"), "dados": {"quantidade": "1 monitor"}})
     pid = r.json()["id"]
     assert r.json()["estado"] == "em_aprovacao"
     assert app_client.post(f"/api/pedidos/{pid}/accoes/aprovar", json={}).status_code == 403  # Helpdesk não aprova
