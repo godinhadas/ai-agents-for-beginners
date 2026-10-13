@@ -189,3 +189,16 @@ body.ecra-entrada footer, body.ecra-entrada footer a { color: var(--texto); }
         background: var(--primaria-suave); color: var(--primaria); font-size: 14px; font-weight: 600; }
 .dica svg { width: 18px; height: 18px; flex: none; }
 #dialogo-corpo textarea[name=campos] { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; min-height: 180px; }
+
+/* ---------- seletor de pessoa ---------- */
+.seletor-pessoa { position: relative; max-width: 520px; }
+.sugestoes { display: flex; flex-direction: column; margin-top: 4px; border-radius: 10px; overflow: hidden; }
+.sugestoes:not(:empty) { border: 1px solid var(--linha); box-shadow: var(--sombra); background: var(--cartao); }
+.sugestoes button { border: 0; border-radius: 0; justify-content: flex-start; padding: 10px 14px; background: var(--cartao); }
+.sugestoes button:hover { background: var(--primaria-suave); }
+.sugestoes small, .pessoa-escolhida small { color: var(--suave); }
+.sugestoes .vazio { padding: 10px 14px; }
+.pessoa-escolhida { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px;
+                    background: var(--primaria-suave); color: var(--texto); font-weight: 600; }
+.pessoa-escolhida svg { width: 18px; height: 18px; color: var(--primaria); }
+.dica a { color: inherit; }

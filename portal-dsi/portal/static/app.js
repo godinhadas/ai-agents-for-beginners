@@ -291,9 +291,10 @@ async function vistaNovo(itemId) {
       </div>
       <div class="campo-guiado"><div class="rotulo">Para quem é?</div>
         <div class="pilulas" id="para"><button type="button" class="pilula activo" data-valor="eu">Para mim</button><button type="button" class="pilula" data-valor="outro">Para outra pessoa</button></div>
-        <div id="escolher-pessoa" hidden>
-          <input id="pessoa" list="lista-pessoas" placeholder="Escreve o nome do colega" autocomplete="off">
-          <datalist id="lista-pessoas">${colegas.map((u) => `<option value="${esc(u.nome)}"></option>`).join("")}</datalist>
+        <div id="escolher-pessoa" class="seletor-pessoa" hidden>
+          ${colegas.length ? `<input id="pessoa" placeholder="Escreve parte do nome ou do email" autocomplete="off">
+          <div id="sugestoes" class="sugestoes"></div><div id="escolhido"></div>`
+          : `<p class="dica">${icone("ajuda")} Ainda não há outros colaboradores no portal. Entram automaticamente com a sincronização do Entra ID${eu.perfil === "admin" ? ', ou podes criá-los em <a href="#admin/utilizadores">Administração &gt; Utilizadores</a>' : ""}.</p>`}
         </div>
       </div>
       ${campos.map(campoGuiado).join("")}
@@ -306,21 +307,39 @@ async function vistaNovo(itemId) {
       <div style="display:flex;gap:8px"><button class="primario">Enviar pedido</button><button type="button" onclick="location.hash='inicio'">Cancelar</button></div>
     </form>`;
   const form = $("form-novo");
+  let pessoaEscolhida = null;
+  const semAcentos = (t) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const mostrarEscolhido = () => {
+    $("escolhido").innerHTML = pessoaEscolhida ? `<span class="pessoa-escolhida">${icone("utilizador")} ${esc(pessoaEscolhida.nome)}
+      <small>${esc(pessoaEscolhida.email)}</small><button type="button" class="ligacao" id="trocar">Trocar</button></span>` : "";
+    $("pessoa").hidden = !!pessoaEscolhida;
+    if (pessoaEscolhida) $("trocar").onclick = () => { pessoaEscolhida = null; $("pessoa").value = ""; mostrarEscolhido(); $("pessoa").focus(); };
+  };
+  if ($("pessoa")) {
+    $("pessoa").oninput = () => {
+      const q = semAcentos($("pessoa").value.trim());
+      const res = q ? colegas.filter((u) => semAcentos(`${u.nome} ${u.email}`).includes(q)).slice(0, 8) : [];
+      $("sugestoes").innerHTML = res.map((u) => `<button type="button" data-pessoa="${u.id}">${esc(u.nome)} <small>${esc(u.email)}</small></button>`).join("")
+        || (q ? '<div class="vazio">Nenhum colaborador com esse nome.</div>' : "");
+      $("sugestoes").querySelectorAll("[data-pessoa]").forEach((b) => (b.onclick = () => {
+        pessoaEscolhida = colegas.find((u) => u.id === Number(b.dataset.pessoa));
+        $("sugestoes").innerHTML = ""; mostrarEscolhido();
+      }));
+    };
+  }
   form.querySelectorAll(".pilulas").forEach((g) => g.addEventListener("click", (e) => {
     const b = e.target.closest(".pilula");
     if (!b) return;
     if (g.dataset.tipo === "multi") b.classList.toggle("activo");
     else { g.querySelectorAll(".pilula").forEach((x) => x.classList.toggle("activo", x === b)); }
-    if (g.id === "para") $("escolher-pessoa").hidden = b.dataset.valor !== "outro";
+    if (g.id === "para") { $("escolher-pessoa").hidden = b.dataset.valor !== "outro"; if ($("pessoa") && !pessoaEscolhida) $("pessoa").focus(); }
   }));
   form.onsubmit = async (e) => {
     e.preventDefault();
     let beneficiario_id = eu.id;
     if (form.querySelector("#para .activo").dataset.valor === "outro") {
-      const nome = $("pessoa").value.trim();
-      const pessoa = colegas.find((u) => u.nome.toLowerCase() === nome.toLowerCase());
-      if (!pessoa) { $("erro-novo").textContent = "Escolhe o colega a partir da lista de nomes."; return; }
-      beneficiario_id = pessoa.id;
+      if (!pessoaEscolhida) { $("erro-novo").textContent = colegas.length ? "Escreve o nome e escolhe o colega na lista." : "Ainda não há outros colaboradores no portal."; return; }
+      beneficiario_id = pessoaEscolhida.id;
     }
     const corpo = { item_id: item.id, beneficiario_id, dados: lerGuiado(form, campos),
       descricao: form.elements.descricao.value, prioridade: form.querySelector("#urgencia .activo").dataset.valor || null };
