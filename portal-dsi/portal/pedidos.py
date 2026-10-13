@@ -4,6 +4,7 @@ Toda a regra de negócio e de permissões dos pedidos vive aqui; a API só tradu
 PermissionError em 403 e ValueError em 409/422.
 """
 
+import os
 from datetime import datetime, timedelta
 
 from sqlalchemy import select
@@ -14,6 +15,11 @@ from .models import (AtribuicaoLicenca, Comentario, Equipamento, Evento, ItemCat
                      Utilizador, agora)
 
 ABERTOS = ("em_aprovacao", "novo", "em_curso", "aguarda_colaborador")
+
+
+def inventario_activo() -> bool:
+    """Módulo de equipamentos e licenças (desligado por omissão nesta fase)."""
+    return os.getenv("PORTAL_INVENTARIO", "0") == "1"
 DIAS_FECHO_AUTOMATICO = 5
 
 
@@ -92,7 +98,9 @@ def accoes(u: Utilizador, p: Pedido) -> list[str]:
             a.append("assumir")
         if p.estado != "aguarda_colaborador":
             a.append("aguardar")
-        a += ["resolver", "entregar_equipamento", "atribuir_licenca"]
+        a.append("resolver")
+        if inventario_activo():
+            a += ["entregar_equipamento", "atribuir_licenca"]
     if p.estado == "resolvido" and (envolvido or staff(u)):
         a += ["reabrir", "fechar"]
     if p.estado in ("em_aprovacao", "novo") and (envolvido or staff(u)):

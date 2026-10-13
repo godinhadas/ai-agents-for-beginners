@@ -63,7 +63,7 @@ def garantir_administrador(db: Session) -> None:
     if db.scalar(select(Utilizador.id).limit(1)) is not None:
         return
     emails = [e.strip().lower() for e in os.getenv("PORTAL_ADMINS", "").split(",") if e.strip()]
-    for email in emails or ["admin@local"]:
+    for email in emails or ["admin@dsi.local"]:
         nome = email.split("@")[0].replace(".", " ").title() if emails else "Administrador DSI"
         db.add(Utilizador(nome=nome, email=email, perfil="admin"))
     try:

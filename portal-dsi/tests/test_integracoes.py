@@ -15,6 +15,7 @@ def app_client(monkeypatch):
     monkeypatch.setenv("PORTAL_SEED", "demo")
     monkeypatch.setenv("PORTAL_AUTH_MODE", "dev")
     monkeypatch.setenv("PORTAL_TAREFAS", "0")
+    monkeypatch.setenv("PORTAL_INVENTARIO", "1")
     monkeypatch.setenv("PORTAL_CAIXA_HELPDESK", "helpdesk@mhais.example")
     dbmod.configure("sqlite://")
     from portal.main import app

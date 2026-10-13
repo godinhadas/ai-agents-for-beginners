@@ -77,6 +77,7 @@ def _completar_esquema() -> None:
         # Valores de versões anteriores
         if insp.has_table("utilizadores"):
             con.execute(text("UPDATE utilizadores SET perfil='colaborador' WHERE perfil='chefia'"))
+            con.execute(text("UPDATE utilizadores SET email='admin@dsi.local' WHERE email='admin@local'"))
         for t in ("catalogo", "pedidos"):
             if insp.has_table(t):
                 con.execute(text(f"UPDATE {t} SET tipo='intervencao' WHERE tipo='incidente'"))

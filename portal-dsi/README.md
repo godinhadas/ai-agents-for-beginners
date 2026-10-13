@@ -32,6 +32,10 @@ Testes: `.\.venv\Scripts\python.exe -m pytest`
 
 O catálogo (mosaicos, descrições, ícones, ordem e quais exigem aprovação) altera-se em Administração > Catálogo.
 
+## Módulos
+
+Nesta fase o foco é o **circuito de pedidos**. Os menus de Equipamentos e Licenças (inventário e entregas a partir dos pedidos) estão desligados e activam-se com `PORTAL_INVENTARIO=1` no `.env`.
+
 ## Dados iniciais
 
 - A base começa **limpa**: só o catálogo de pedidos e, em modo de teste, o(s) administrador(es) indicados em `PORTAL_ADMINS`.

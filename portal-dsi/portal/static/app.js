@@ -130,7 +130,8 @@ async function mostrarLogin() {
 function desenharNav() {
   document.body.classList.remove("ecra-entrada");
   const itens = [["inicio", "Início"], ["pedidos", staff() ? "Pedidos" : "Os meus pedidos"]];
-  if (staff()) itens.push(["painel", "Painel"], ["equipamentos", "Equipamentos"], ["licencas", "Licenças"]);
+  if (staff()) itens.push(["painel", "Painel"]);
+  if (staff() && cfg.inventario) itens.push(["equipamentos", "Equipamentos"], ["licencas", "Licenças"]);
   if (eu.perfil === "admin") itens.push(["admin", "Administração"]);
   nav.innerHTML = itens.map(([id, l]) => `<button data-sec="${id}">${l}</button>`).join("");
   $("utilizador").innerHTML = `<span>${esc(eu.nome)}</span><button id="sair" class="botao" title="Sair">${icone("sair")} Sair</button>`;
@@ -173,29 +174,43 @@ const kpi = (r, v, nota = "") => `<div class="cartao kpi"><div class="rotulo">${
 const barra = (r, frac, v) => `<div class="barra-h"><span>${esc(r)}</span><div class="trilho"><div class="enchimento" style="width:${(frac * 100).toFixed(1)}%"></div></div><span style="text-align:right">${esc(v)}</span></div>`;
 
 // ---------- início ----------
+let catInicio = "acesso";
 async function vistaInicio() {
   const [d, catalogo] = await Promise.all([api("/api/inicio"), api("/api/catalogo?activo=true")]);
-  const mosaicos = TIPOS.map((t) => {
-    const itens = catalogo.filter((c) => c.tipo === t);
-    if (!itens.length) return "";
-    return `<section class="categoria"><h2>${esc(rot(t))}</h2><div class="mosaicos">${itens.map((c) => `
-      <button class="mosaico" data-item="${c.id}">
-        <span class="icone">${icone(c.icone)}</span>
-        <strong>${esc(c.nome)}</strong>
-        ${c.descricao ? `<small>${esc(c.descricao)}</small>` : ""}
-        ${c.requer_aprovacao ? '<span class="aprov">Aprovação DSI</span>' : ""}
-      </button>`).join("")}</div></section>`;
-  }).join("");
+  const cats = TIPOS.filter((t) => catalogo.some((c) => c.tipo === t));
+  if (!cats.includes(catInicio)) catInicio = cats[0];
+  const meus = d.meus_pedidos.slice(0, 5);
   conteudo.innerHTML = `
-    <div class="saudacao"><h1>Olá, ${esc(eu.nome.split(" ")[0])}</h1><p>O que precisas hoje?</p></div>
-    ${d.para_aprovar.length ? `<section class="cartao" style="margin-bottom:24px;border-left:4px solid var(--primaria)"><h2>À espera da tua aprovação (${d.para_aprovar.length})</h2>${tabela(d.para_aprovar, COLS_PEDIDO, { clicavel: true })}</section>` : ""}
-    ${d.meus_pedidos.length ? `<section class="cartao" style="margin-bottom:24px"><h2>Os meus pedidos em curso</h2>${tabela(d.meus_pedidos, COLS_PEDIDO, { clicavel: true })}</section>` : ""}
-    ${mosaicos}
-    ${d.equipamentos.length || d.licencas.length ? `<div class="grelha" style="margin-top:8px">
-      <section class="cartao"><h2>O meu equipamento</h2>${tabela(d.equipamentos, [["etiqueta", "Etiqueta"], ["tipo", "Tipo"], ["marca", "Marca"], ["modelo", "Modelo"]])}</section>
-      <section class="cartao"><h2>As minhas licenças</h2>${d.licencas.length ? d.licencas.map((l) => `<span class="etiqueta marca" style="margin:0 6px 6px 0">${esc(l)}</span>`).join("") : '<p class="vazio">Sem licenças atribuídas.</p>'}</section>
-    </div>` : ""}`;
-  conteudo.querySelectorAll("[data-item]").forEach((b) => (b.onclick = () => (location.hash = `novo/${b.dataset.item}`)));
+    <div class="saudacao">
+      <div><h1>Olá, ${esc(eu.nome.split(" ")[0])}</h1><p>O que precisas hoje?</p></div>
+      <input type="search" id="procurar" placeholder="Procurar: monitor, VPN, Anywhere, impressora..." autocomplete="off">
+    </div>
+    ${d.para_aprovar.length ? `<section class="cartao aviso-aprovacao"><h2>${icone("alerta")} ${d.para_aprovar.length} pedido(s) à espera da tua aprovação</h2>${tabela(d.para_aprovar, COLS_PEDIDO, { clicavel: true })}</section>` : ""}
+    <section class="cartao catalogo">
+      <div class="abas" id="cats">${cats.map((t) => `<button data-cat="${t}" class="${t === catInicio ? "activo" : ""}">${esc(rot(t))}</button>`).join("")}</div>
+      <div class="mosaicos" id="itens"></div>
+    </section>
+    ${meus.length ? `<section class="cartao" style="margin-top:20px"><div class="cabecalho" style="margin-bottom:8px"><h2 style="margin:0">Os meus pedidos em curso</h2><button class="ligacao" onclick="location.hash='pedidos'">Ver todos</button></div>${tabela(meus, COLS_PEDIDO, { clicavel: true })}</section>` : ""}`;
+  const desenhar = () => {
+    const q = $("procurar").value.trim().toLowerCase();
+    const lista = q ? catalogo.filter((c) => `${c.nome} ${c.descricao || ""} ${rot(c.tipo)}`.toLowerCase().includes(q))
+                    : catalogo.filter((c) => c.tipo === catInicio);
+    $("cats").style.display = q ? "none" : "";
+    $("itens").innerHTML = lista.map((c) => `
+      <button class="mosaico" data-item="${c.id}" title="${esc(c.descricao || "")}">
+        <span class="icone">${icone(c.icone)}</span>
+        <span class="texto"><strong>${esc(c.nome)}</strong><small>${esc(c.descricao || "")}</small>
+          ${c.requer_aprovacao ? '<span class="aprov">Requer aprovação DSI</span>' : ""}</span>
+      </button>`).join("") || '<p class="vazio">Nada encontrado. Usa "Outro pedido" na categoria Outros.</p>';
+    $("itens").querySelectorAll("[data-item]").forEach((b) => (b.onclick = () => (location.hash = `novo/${b.dataset.item}`)));
+  };
+  $("cats").querySelectorAll("[data-cat]").forEach((b) => (b.onclick = () => {
+    catInicio = b.dataset.cat;
+    $("cats").querySelectorAll("button").forEach((x) => x.classList.toggle("activo", x === b));
+    desenhar();
+  }));
+  $("procurar").oninput = desenhar;
+  desenhar();
 }
 
 // ---------- lista de pedidos ----------
@@ -369,6 +384,8 @@ async function abrirAccao(id, accao) {
 async function vistaPainel() {
   const p = await api("/api/painel");
   const maxTec = Math.max(1, ...p.por_tecnico.map((x) => x.abertos));
+  const maxTipo = Math.max(1, ...Object.values(p.por_tipo));
+  const inv = cfg.inventario;
   conteudo.innerHTML = `
     <h1>Painel DSI</h1>
     <div class="kpis">
@@ -376,15 +393,15 @@ async function vistaPainel() {
       ${kpi("Sem técnico", p.sem_tecnico)}
       ${kpi("Fora de prazo", p.sla_violado, `${p.sla_em_risco} em risco`)}
       ${kpi("Resolvidos em 7 dias", p.resolvidos_7d)}
-      ${kpi("Equipamento em stock", p.equipamentos_por_estado.stock, `${p.equipamentos_por_estado.reparacao} em reparação`)}
+      ${inv ? kpi("Equipamento em stock", p.equipamentos_por_estado.stock, `${p.equipamentos_por_estado.reparacao} em reparação`) : ""}
     </div>
     <section class="cartao" style="margin-bottom:16px"><h2>Exigem atenção (fora de prazo ou em risco)</h2>${tabela(p.atencao, COLS_PEDIDO, { clicavel: true })}</section>
     <div class="grelha">
       <section class="cartao"><h2>Carga por técnico</h2>${p.por_tecnico.map((x) => barra(x.tecnico, x.abertos / maxTec, x.abertos)).join("") || '<p class="vazio">Sem pedidos em aberto.</p>'}
         <h2 style="margin-top:20px">Por estado</h2>${Object.entries(p.por_estado).map(([e, n]) => barra(rot(e), n / Math.max(1, p.abertos), n)).join("")}</section>
-      <section class="cartao"><h2>Licenças</h2>${tabela(p.licencas, [["produto", "Produto"], ["quantidade", "Total", null, "num"], ["usadas", "Usadas", null, "num"],
-        ["livres", "Livres", (v) => `<span class="etiqueta ${v === 0 ? "perigo" : v <= 2 ? "alerta" : "ok"}">${v}</span>`, "num"], ["renovacao_em", "Renovação", dataPT]])}
-        <h2 style="margin-top:20px">Garantias a expirar (90 dias)</h2>${tabela(p.garantias_a_expirar, [["etiqueta", "Etiqueta"], ["tipo", "Tipo"], ["modelo", "Modelo"], ["garantia_ate", "Garantia até", dataPT]])}</section>
+      <section class="cartao"><h2>Em aberto por categoria</h2>${Object.entries(p.por_tipo).map(([t, n]) => barra(rot(t), n / maxTipo, n)).join("")}
+      ${inv ? `<h2 style="margin-top:20px">Licenças</h2>${tabela(p.licencas, [["produto", "Produto"], ["quantidade", "Total", null, "num"], ["usadas", "Usadas", null, "num"],
+        ["livres", "Livres", (v) => `<span class="etiqueta ${v === 0 ? "perigo" : v <= 2 ? "alerta" : "ok"}">${v}</span>`, "num"], ["renovacao_em", "Renovação", dataPT]])}` : ""}</section>
     </div>`;
 }
 

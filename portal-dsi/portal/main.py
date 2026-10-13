@@ -180,6 +180,7 @@ def config_publica():
         "contacto_email": os.getenv("PORTAL_CONTACTO_EMAIL") or os.getenv("PORTAL_CAIXA_HELPDESK"),
         "contacto_telefone": os.getenv("PORTAL_CONTACTO_TELEFONE"),
         "horario": os.getenv("PORTAL_HORARIO", "Segunda a sexta, 08:00 às 17:00"),
+        "inventario": wf.inventario_activo(),
     }
 
 
@@ -402,6 +403,8 @@ def painel(db: Session = Depends(get_db), _=Depends(exigir(*STAFF))):
     return {
         "abertos": len(abertos),
         "por_estado": {e: sum(1 for p in abertos if p.estado == e) for e in wf.ABERTOS},
+        "por_tipo": {t: sum(1 for p in abertos if p.tipo == t)
+                     for t in ("acesso", "anywhere", "equipamento", "licenca", "intervencao", "outro")},
         "sem_tecnico": sum(1 for p in abertos if p.tecnico_id is None and p.estado != "em_aprovacao"),
         "sla_violado": estados_sla.count("violado"),
         "sla_em_risco": estados_sla.count("em_risco"),

@@ -19,13 +19,17 @@ class DepartamentoIn(_Base):
     nome: str = Field(min_length=2, max_length=100)
 
 
-class UtilizadorIn(_Base):
+class _UtilizadorBase(_Base):
     nome: str = Field(min_length=2, max_length=150)
-    email: str = Field(pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$", max_length=150)
+    email: str = Field(max_length=150)  # saída: sem validar o formato (dados antigos ou importados)
     departamento_id: int | None = None
     chefia_id: int | None = None
     perfil: Perfil = "colaborador"
     activo: bool = True
+
+
+class UtilizadorIn(_UtilizadorBase):
+    email: str = Field(pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$", max_length=150)
 
 
 class ItemCatalogoIn(_Base):
@@ -74,7 +78,7 @@ def _out_of(model: type[BaseModel], **extra) -> type[BaseModel]:
 
 
 DepartamentoUpdate, DepartamentoOut = _update_of(DepartamentoIn), _out_of(DepartamentoIn)
-UtilizadorUpdate, UtilizadorOut = _update_of(UtilizadorIn), _out_of(UtilizadorIn)
+UtilizadorUpdate, UtilizadorOut = _update_of(UtilizadorIn), _out_of(_UtilizadorBase)
 ItemCatalogoUpdate, ItemCatalogoOut = _update_of(ItemCatalogoIn), _out_of(ItemCatalogoIn)
 EquipamentoUpdate, EquipamentoOut = _update_of(EquipamentoIn), _out_of(EquipamentoIn)
 LicencaUpdate = _update_of(LicencaIn)
