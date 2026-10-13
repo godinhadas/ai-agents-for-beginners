@@ -29,6 +29,7 @@ class Utilizador(Base):
     chefia_id: Mapped[int | None] = mapped_column(ForeignKey("utilizadores.id"))
     perfil: Mapped[str] = mapped_column(String(20), default="colaborador")  # colaborador|chefia|helpdesk|admin
     activo: Mapped[bool] = mapped_column(Boolean, default=True)
+    entra_oid: Mapped[str | None] = mapped_column(String(36), unique=True)  # id do objecto no Entra ID
 
     departamento: Mapped[Departamento | None] = relationship()
     chefia: Mapped["Utilizador | None"] = relationship(remote_side=[id])
@@ -55,6 +56,7 @@ class Pedido(Base):
     item_id: Mapped[int | None] = mapped_column(ForeignKey("catalogo.id"))
     prioridade: Mapped[str] = mapped_column(String(10))
     estado: Mapped[str] = mapped_column(String(20), index=True)
+    origem: Mapped[str] = mapped_column(String(10), default="portal")  # portal | email
     criado_por_id: Mapped[int] = mapped_column(ForeignKey("utilizadores.id"))
     beneficiario_id: Mapped[int] = mapped_column(ForeignKey("utilizadores.id"), index=True)
     tecnico_id: Mapped[int | None] = mapped_column(ForeignKey("utilizadores.id"), index=True)
@@ -154,3 +156,33 @@ class AtribuicaoLicenca(Base):
 
     licenca: Mapped[Licenca] = relationship(back_populates="atribuicoes")
     utilizador: Mapped[Utilizador] = relationship()
+
+
+class Notificacao(Base):
+    """Caixa de saída de emails: gravada na mesma transacção do pedido, enviada em segundo plano."""
+
+    __tablename__ = "notificacoes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    pedido_id: Mapped[int | None] = mapped_column(ForeignKey("pedidos.id"), index=True)
+    para: Mapped[str] = mapped_column(String(150))
+    assunto: Mapped[str] = mapped_column(String(250))
+    corpo: Mapped[str] = mapped_column(Text)
+    estado: Mapped[str] = mapped_column(String(12), default="pendente", index=True)  # pendente|enviada|simulada|erro
+    tentativas: Mapped[int] = mapped_column(Integer, default=0)
+    erro: Mapped[str | None] = mapped_column(Text)
+    criado_em: Mapped[datetime] = mapped_column(DateTime, default=agora)
+    enviado_em: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+class MensagemRecebida(Base):
+    """Emails da caixa do Helpdesk já processados (evita duplicar pedidos)."""
+
+    __tablename__ = "mensagens_recebidas"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    message_id: Mapped[str] = mapped_column(String(300), unique=True)
+    pedido_id: Mapped[int | None] = mapped_column(ForeignKey("pedidos.id"))
+    resultado: Mapped[str] = mapped_column(String(30))  # criado|comentario|ignorado
+    remetente: Mapped[str | None] = mapped_column(String(150))
+    recebido_em: Mapped[datetime] = mapped_column(DateTime, default=agora)

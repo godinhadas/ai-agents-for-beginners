@@ -12,6 +12,7 @@ from portal.models import Pedido, Utilizador
 def app_client(monkeypatch):
     monkeypatch.setenv("PORTAL_SEED", "1")
     monkeypatch.setenv("PORTAL_AUTH_MODE", "dev")
+    monkeypatch.setenv("PORTAL_TAREFAS", "0")
     dbmod.configure("sqlite://")
     from portal.main import app
 

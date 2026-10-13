@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from . import sla
+from . import notificacoes, sla
 from .models import (AtribuicaoLicenca, Comentario, Equipamento, Evento, ItemCatalogo, Licenca, Pedido,
                      Utilizador, agora)
 
@@ -32,6 +32,7 @@ def pode_ver(u: Utilizador, p: Pedido) -> bool:
 def _evento(db: Session, p: Pedido, u: Utilizador | None, accao: str, detalhe: str | None = None) -> None:
     db.add(Evento(pedido=p, autor_id=u.id if u else None, accao=accao, detalhe=detalhe, criado_em=agora()))
     p.actualizado_em = agora()
+    notificacoes.evento(db, p, u, accao, detalhe)
 
 
 def _iniciar_sla(p: Pedido, inicio: datetime) -> None:
@@ -50,7 +51,8 @@ def _aprovador_para(db: Session, beneficiario: Utilizador) -> Utilizador:
 
 
 def criar(db: Session, u: Utilizador, *, titulo: str, descricao: str, beneficiario_id: int | None = None,
-          item_id: int | None = None, tipo: str | None = None, prioridade: str | None = None) -> Pedido:
+          item_id: int | None = None, tipo: str | None = None, prioridade: str | None = None,
+          origem: str = "portal") -> Pedido:
     beneficiario = db.get(Utilizador, beneficiario_id or u.id)
     if beneficiario is None or not beneficiario.activo:
         raise ValueError("Beneficiário inexistente ou inactivo.")
@@ -68,7 +70,7 @@ def criar(db: Session, u: Utilizador, *, titulo: str, descricao: str, beneficiar
 
     momento = agora()
     p = Pedido(titulo=titulo, descricao=descricao, tipo=tipo, item=item, prioridade=prioridade, estado="novo",
-               criado_por_id=u.id, beneficiario=beneficiario, criado_em=momento, actualizado_em=momento)
+               origem=origem, criado_por_id=u.id, beneficiario=beneficiario, criado_em=momento, actualizado_em=momento)
     _iniciar_sla(p, momento)
     db.add(p)
     db.flush()
@@ -86,6 +88,8 @@ def criar(db: Session, u: Utilizador, *, titulo: str, descricao: str, beneficiar
             _evento(db, p, None, "aguarda_aprovacao", f"Aprovador: {aprovador.nome}")
     else:
         p.estado = "novo"
+    if p.estado == "novo":
+        notificacoes.novo_para_helpdesk(db, p)
     db.commit()
     return p
 
@@ -120,6 +124,7 @@ def executar(db: Session, u: Utilizador, p: Pedido, accao: str, dados: dict) -> 
         p.estado = "novo"
         _iniciar_sla(p, momento)  # o SLA conta a partir da aprovação
         _evento(db, p, u, "aprovado", motivo)
+        notificacoes.novo_para_helpdesk(db, p)
     elif accao == "recusar":
         if not motivo:
             raise ValueError("Indica o motivo da recusa.")
@@ -197,6 +202,8 @@ def comentar(db: Session, u: Utilizador, p: Pedido, texto: str, interno: bool = 
     db.add(c)
     if staff(u) and not interno:
         p.primeira_resposta_em = p.primeira_resposta_em or c.criado_em
+    if not interno:
+        notificacoes.comentario(db, p, u, texto, staff(u))
     if p.estado == "aguarda_colaborador" and u.id in (p.criado_por_id, p.beneficiario_id):
         p.estado = "em_curso"
         _evento(db, p, u, "resposta_colaborador")

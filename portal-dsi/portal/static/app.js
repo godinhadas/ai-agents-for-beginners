@@ -59,7 +59,9 @@ async function mostrarLogin() {
   nav.innerHTML = ""; $("utilizador").innerHTML = "";
   const { modo } = await api("/api/auth/modo");
   if (modo !== "dev") {
-    conteudo.innerHTML = `<section class="cartao login"><h1>Portal DSI</h1><p>Início de sessão com conta Microsoft ainda não configurado.</p></section>`;
+    conteudo.innerHTML = `<section class="cartao login"><h1>Portal DSI</h1>
+      <p>Pedidos à DSI: incidentes, equipamentos, licenças e acessos.</p>
+      <button class="primario" onclick="location.href='/auth/login'">Entrar com a conta Microsoft da MHAIS</button></section>`;
     return;
   }
   const us = await api("/api/auth/utilizadores-demo");
@@ -233,7 +235,7 @@ async function vistaPedido(id) {
             <div><span>Tipo</span>${esc(rot(p.tipo))}${p.item ? ` · ${esc(p.item)}` : ""}</div>
             <div><span>Técnico</span>${esc(p.tecnico || "Por atribuir")}</div>
             ${p.aprovador ? `<div><span>Aprovador</span>${esc(p.aprovador)}</div>` : ""}
-            <div><span>Criado em</span>${dataHora(p.criado_em)}</div>
+            <div><span>Criado em</span>${dataHora(p.criado_em)}${p.origem === "email" ? " · por email" : ""}</div>
             <div><span>Prazo de resposta</span>${dataHora(p.prazo_resposta)}</div>
             <div><span>Prazo de resolução</span>${dataHora(p.prazo_resolucao)}</div>
           </div>
@@ -455,9 +457,43 @@ async function verAtribuicoes(lic) {
 
 // ---------- administração ----------
 async function vistaAdmin(sub) {
-  const abas = [["utilizadores", "Utilizadores"], ["catalogo", "Catálogo"], ["departamentos", "Departamentos"]];
+  const abas = [["utilizadores", "Utilizadores"], ["catalogo", "Catálogo"], ["departamentos", "Departamentos"], ["integracoes", "Integrações"]];
   const cab = `<div class="abas">${abas.map(([k, l]) => `<button onclick="location.hash='admin/${k}'" class="${sub === k ? "activo" : ""}">${l}</button>`).join("")}</div>`;
+  if (sub === "integracoes") return vistaIntegracoes(cab);
   await vistaLista(ENTIDADES[sub] ? sub : "utilizadores", conteudo, cab);
+}
+
+async function vistaIntegracoes(cab) {
+  const [e, ns] = await Promise.all([api("/api/admin/estado"), api("/api/admin/notificacoes")]);
+  const sim = (v) => (v ? '<span class="etiqueta ok">Sim</span>' : '<span class="etiqueta alerta">Não</span>');
+  conteudo.innerHTML = `${cab}
+    <h1>Integrações Microsoft 365</h1>
+    <section class="cartao" style="margin-bottom:16px">
+      <div class="meta">
+        <div><span>Início de sessão</span>${e.modo_autenticacao === "entra" ? "Conta Microsoft (Entra ID)" : "Demonstração (sem palavra-passe)"}</div>
+        <div><span>Microsoft Graph configurado</span>${sim(e.graph_configurado)}</div>
+        <div><span>Caixa do Helpdesk</span>${esc(e.caixa_helpdesk || "Não definida")}</div>
+        <div><span>Pedidos por email</span>${sim(e.leitura_caixa)}</div>
+        <div><span>Último ciclo</span>${dataHora(e.ultimo_ciclo) || "Ainda não correu"}</div>
+        <div><span>Última sincronização</span>${dataHora(e.ultima_sincronizacao) || "Ainda não correu"}</div>
+      </div>
+      <div class="accoes-pedido" style="margin-top:16px">
+        <button id="btn-ciclo">Correr tarefas agora</button>
+        <button id="btn-sync" ${e.graph_configurado ? "" : "disabled"}>Sincronizar com o Entra ID</button>
+      </div>
+      <pre id="resultado" style="white-space:pre-wrap;font-size:13px;color:var(--suave)">${e.resultados && Object.keys(e.resultados).length ? esc(JSON.stringify(e.resultados, null, 2)) : ""}</pre>
+    </section>
+    <section class="cartao"><h2>Emails enviados pelo portal (últimos 200)</h2>
+      ${tabela(ns, [["criado_em", "Data", dataHora], ["para", "Para"], ["assunto", "Assunto"],
+        ["estado", "Estado", (v) => `<span class="etiqueta ${v === "enviada" ? "ok" : v === "erro" ? "perigo" : "alerta"}">${esc(v)}</span>`],
+        ["erro", "Erro", (v) => esc((v || "").slice(0, 80))]])}
+    </section>`;
+  const correr = async (url) => {
+    $("resultado").textContent = "A correr...";
+    try { await api(url, { method: "POST" }); vistaIntegracoes(cab); } catch (err) { $("resultado").textContent = err.message; }
+  };
+  $("btn-ciclo").onclick = () => correr("/api/admin/ciclo");
+  $("btn-sync").onclick = () => correr("/api/admin/ciclo?sincronizar=true");
 }
 
 arrancar();

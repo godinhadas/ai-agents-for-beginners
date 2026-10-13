@@ -1,5 +1,6 @@
 """API e interface web do Portal DSI."""
 
+import asyncio
 import logging
 import os
 import secrets
@@ -17,11 +18,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import auth, db as dbmod, pedidos as wf, schemas as s, seed, sla
+from . import auth, db as dbmod, entra, graph as graphmod, pedidos as wf, schemas as s, seed, sincronizacao, sla, tarefas
 from .auth import STAFF, exigir, utilizador_actual
 from .db import get_db
-from .models import (AtribuicaoLicenca, Departamento, Equipamento, ItemCatalogo, Licenca, Pedido, Utilizador,
-                     agora)
+from .models import (AtribuicaoLicenca, Departamento, Equipamento, ItemCatalogo, Licenca, Notificacao, Pedido,
+                     Utilizador, agora)
 
 load_dotenv()
 log = logging.getLogger("portal")
@@ -34,15 +35,21 @@ async def lifespan(_: FastAPI):
     if os.getenv("PORTAL_SEED", "1") == "1":
         with dbmod.SessionLocal() as db:
             seed.carregar(db)
+    ciclo = asyncio.create_task(tarefas.correr_para_sempre()) if os.getenv("PORTAL_TAREFAS", "1") == "1" else None
     yield
+    if ciclo:
+        ciclo.cancel()
 
 
 app = FastAPI(title="Portal DSI MHAIS", version="0.1.0", lifespan=lifespan)
 
 _segredo = os.getenv("PORTAL_SECRET_KEY")
+if not _segredo and auth.modo() == "entra":
+    raise RuntimeError("PORTAL_SECRET_KEY é obrigatório com PORTAL_AUTH_MODE=entra.")
 if not _segredo:
     log.warning("PORTAL_SECRET_KEY não definido: sessões perdem-se ao reiniciar o servidor.")
     _segredo = secrets.token_urlsafe(32)
+app.include_router(entra.router)
 app.add_middleware(SessionMiddleware, secret_key=_segredo, session_cookie="portal_dsi", same_site="lax",
                    max_age=8 * 3600, https_only=os.getenv("PORTAL_HTTPS", "0") == "1")
 
@@ -206,7 +213,7 @@ def _resumo(p: Pedido, momento) -> dict:
         "prioridade": p.prioridade, "estado": p.estado, "beneficiario": p.beneficiario.nome,
         "criado_por": p.criado_por.nome, "tecnico": p.tecnico.nome if p.tecnico else None,
         "criado_em": p.criado_em, "actualizado_em": p.actualizado_em, "prazo_resolucao": p.prazo_resolucao,
-        "sla": sla.estado_sla(p, momento),
+        "sla": sla.estado_sla(p, momento), "origem": p.origem,
     }
 
 
@@ -392,6 +399,43 @@ def painel(db: Session = Depends(get_db), _=Depends(exigir(*STAFF))):
         "licencas_a_renovar": [l for l in licencas if l["renovacao_em"]
                                and hoje <= l["renovacao_em"] <= hoje + timedelta(days=60)],
     }
+
+
+# ---------- administração: integrações ----------
+
+@app.get("/api/admin/estado", tags=["admin"])
+def admin_estado(_=Depends(exigir("admin"))):
+    return {
+        "modo_autenticacao": auth.modo(),
+        "graph_configurado": graphmod.configurado(),
+        "caixa_helpdesk": os.getenv("PORTAL_CAIXA_HELPDESK"),
+        "leitura_caixa": os.getenv("PORTAL_LER_CAIXA", "0") == "1",
+        "ultimo_ciclo": tarefas.estado["ultimo_ciclo"],
+        "ultima_sincronizacao": tarefas.estado["ultima_sync"],
+        "resultados": tarefas.estado["resultados"],
+    }
+
+
+@app.post("/api/admin/ciclo", tags=["admin"])
+def admin_ciclo(sincronizar: bool = False, _=Depends(exigir("admin"))):
+    """Corre já as tarefas de segundo plano (envio de emails, caixa, sincronização)."""
+    return tarefas.ciclo(forcar_sync=sincronizar)
+
+
+@app.post("/api/admin/sincronizar", tags=["admin"])
+def admin_sincronizar(db: Session = Depends(get_db), _=Depends(exigir("admin"))):
+    try:
+        return sincronizacao.sincronizar(db, graphmod.Graph())
+    except graphmod.GraphIndisponivel as exc:
+        raise HTTPException(503, str(exc))
+
+
+@app.get("/api/admin/notificacoes", tags=["admin"])
+def admin_notificacoes(db: Session = Depends(get_db), _=Depends(exigir("admin"))):
+    ns = db.scalars(select(Notificacao).order_by(Notificacao.id.desc()).limit(200))
+    return [{"id": n.id, "pedido_id": n.pedido_id, "para": n.para, "assunto": n.assunto, "estado": n.estado,
+             "tentativas": n.tentativas, "erro": n.erro, "criado_em": n.criado_em, "enviado_em": n.enviado_em}
+            for n in ns]
 
 
 app.mount("/static", StaticFiles(directory=STATIC), name="static")

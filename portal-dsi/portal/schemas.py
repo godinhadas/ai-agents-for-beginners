@@ -102,6 +102,7 @@ class PedidoResumo(BaseModel):
     actualizado_em: datetime
     prazo_resolucao: datetime
     sla: str
+    origem: str = "portal"
 
 
 class ComentarioIn(BaseModel):
