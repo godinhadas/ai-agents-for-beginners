@@ -47,6 +47,8 @@ class ItemCatalogo(Base):
     requer_aprovacao: Mapped[bool] = mapped_column(Boolean, default=False)
     prioridade_padrao: Mapped[str] = mapped_column(String(10), default="media")
     activo: Mapped[bool] = mapped_column(Boolean, default=True)
+    campos: Mapped[str | None] = mapped_column(Text)  # formulário guiado (JSON, ver formularios.py)
+    automacao: Mapped[str | None] = mapped_column(String(30))  # ver automacoes.py
 
 
 class Pedido(Base):
@@ -60,6 +62,7 @@ class Pedido(Base):
     prioridade: Mapped[str] = mapped_column(String(10))
     estado: Mapped[str] = mapped_column(String(20), index=True)
     origem: Mapped[str] = mapped_column(String(10), default="portal")  # portal | email
+    dados: Mapped[str | None] = mapped_column(Text)  # respostas ao formulário guiado (JSON)
     criado_por_id: Mapped[int] = mapped_column(ForeignKey("utilizadores.id"))
     beneficiario_id: Mapped[int] = mapped_column(ForeignKey("utilizadores.id"), index=True)
     tecnico_id: Mapped[int | None] = mapped_column(ForeignKey("utilizadores.id"), index=True)

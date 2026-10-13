@@ -32,6 +32,23 @@ Testes: `.\.venv\Scripts\python.exe -m pytest`
 
 O catálogo (mosaicos, descrições, ícones, ordem e quais exigem aprovação) altera-se em Administração > Catálogo.
 
+## Formulários por cliques
+
+Cada item do catálogo tem perguntas com opções para escolher (por exemplo, em "Desbloquear conta": que conta e o que se passa; em "Instalação de software": a lista de programas padrão, com campo "Outro" para escrever o que não está na lista). O assunto do pedido é gerado a partir das escolhas e a descrição passa a opcional. As perguntas e opções editam-se em Administração > Catálogo, no campo "Formulário (JSON)".
+
+Qualquer colaborador pode pedir para outra pessoa: "Para outra pessoa" e escolher o nome.
+
+## Automação
+
+| Automação | O que faz | Como se activa |
+|---|---|---|
+| Desbloquear conta no Active Directory | Em "Desbloquear conta" com "Windows / rede", executa `Unlock-ADAccount` no utilizador do pedido e resolve o pedido com o resultado | `PORTAL_AUTOMACAO_AD=1` |
+
+- **Por omissão, com um clique do técnico** ("Executar automaticamente"). Fica registado no histórico quem executou e o resultado.
+- **Imediata** (`PORTAL_AUTOMACAO_IMEDIATA=1`): corre sem técnico **só quando o pedido é do próprio**, autenticado com a conta Microsoft. Pedidos de A para B passam sempre por um técnico, para evitar desbloqueios indevidos.
+- Requisitos: o portal tem de correr num servidor do domínio, com o módulo ActiveDirectory (RSAT), numa conta de serviço com **permissão delegada apenas para desbloquear contas** (nunca Domain Admin).
+- Anywhere: a automação de desbloqueio e perfis depende da API do Anywhere; entra quando houver acesso a ela.
+
 ## Módulos
 
 Nesta fase o foco é o **circuito de pedidos**. Os menus de Equipamentos e Licenças (inventário e entregas a partir dos pedidos) estão desligados e activam-se com `PORTAL_INVENTARIO=1` no `.env`.

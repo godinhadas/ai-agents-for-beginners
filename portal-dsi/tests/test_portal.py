@@ -80,7 +80,7 @@ def _todos_pedidos():
 def test_incidente_vai_directo_para_novo_e_helpdesk_resolve(app_client):
     entrar(app_client, "domingos.pedro")
     r = app_client.post("/api/pedidos", json={"titulo": "PC lento", "descricao": "Demora 10 min a arrancar",
-                                               "item_id": item(app_client, "Computador lento ou com erros")})
+                                               "item_id": item(app_client, "Computador lento ou com erros"), "dados": {"sintomas": ["Muito lento"]}})
     assert r.status_code == 201 and r.json()["estado"] == "novo"
     pid = r.json()["id"]
     assert "cancelar" in app_client.get(f"/api/pedidos/{pid}").json()["accoes"]
@@ -106,7 +106,7 @@ def test_pedido_em_nome_de_outro_com_aprovacao_da_dsi_e_entrega(app_client):
     entrar(app_client, "paulo.cassule")
     joana = uid("joana.sebastiao")
     r = app_client.post("/api/pedidos", json={"titulo": "Monitor adicional", "descricao": "Pedido por telefone",
-                                               "beneficiario_id": joana, "item_id": item(app_client, "Monitor")})
+                                               "beneficiario_id": joana, "item_id": item(app_client, "Monitor"), "dados": {"quantidade": "1"}})
     pid = r.json()["id"]
     assert r.json()["estado"] == "em_aprovacao"
     assert app_client.post(f"/api/pedidos/{pid}/accoes/aprovar", json={}).status_code == 403  # Helpdesk não aprova
@@ -136,7 +136,7 @@ def test_pedido_em_nome_de_outro_com_aprovacao_da_dsi_e_entrega(app_client):
 def test_recusa_exige_motivo(app_client):
     entrar(app_client, "ricardo.manuel")
     pid = app_client.post("/api/pedidos", json={"titulo": "Pen drive", "descricao": "Para apresentações",
-                                                 "item_id": item(app_client, "Pen drive ou disco externo")}).json()["id"]
+                                                 "item_id": item(app_client, "Pen drive ou disco externo"), "dados": {"capacidade": "64 GB"}}).json()["id"]
     entrar(app_client, "antonio.godinho")
     assert app_client.post(f"/api/pedidos/{pid}/accoes/recusar", json={}).status_code == 409
     assert app_client.post(f"/api/pedidos/{pid}/accoes/recusar",
@@ -147,7 +147,7 @@ def test_pedido_registado_pela_dsi_fica_aprovado(app_client):
     entrar(app_client, "antonio.godinho")
     r = app_client.post("/api/pedidos", json={"titulo": "VPN para o Ricardo", "descricao": "Trabalho remoto",
                                                "beneficiario_id": uid("ricardo.manuel"),
-                                               "item_id": item(app_client, "VPN e acesso remoto")})
+                                               "item_id": item(app_client, "VPN e acesso remoto"), "dados": {"periodo": "Permanente"}})
     assert r.json()["estado"] == "novo"
 
 
@@ -176,7 +176,7 @@ def test_licencas_controlam_disponiveis(app_client):
     assert pbi["livres"] == 0
     pid = app_client.post("/api/pedidos", json={"titulo": "Power BI", "descricao": "Relatórios comerciais",
                                                  "beneficiario_id": uid("joana.sebastiao"),
-                                                 "item_id": item(app_client, "Licença Microsoft 365")}).json()["id"]
+                                                 "item_id": item(app_client, "Licença Microsoft 365"), "dados": {"licencas": ["Power BI Pro"]}}).json()["id"]
     app_client.post(f"/api/pedidos/{pid}/accoes/aprovar", json={})  # admin pode aprovar
     r = app_client.post(f"/api/pedidos/{pid}/accoes/atribuir_licenca", json={"licenca_id": pbi["id"]})
     assert r.status_code == 409 and "Sem licenças livres" in r.json()["detail"]
@@ -219,3 +219,101 @@ def test_fecho_automatico(app_client):
 
 def test_interface_servida(app_client):
     assert "Gestor de Pedidos DSI" in app_client.get("/").text
+
+
+# ---------- formulários guiados ----------
+
+def test_formulario_guiado_valida_e_gera_titulo(app_client):
+    entrar(app_client, "joana.sebastiao")
+    sw = item(app_client, "Instalação de software")
+    r = app_client.post("/api/pedidos", json={"item_id": sw, "dados": {}})
+    assert r.status_code == 409 and "Que programas?" in r.json()["detail"]
+    r = app_client.post("/api/pedidos", json={"item_id": item(app_client, "Monitor"), "dados": {"quantidade": "7"}})
+    assert r.status_code == 409 and "opção inválida" in r.json()["detail"]
+    # lista padrão + "outro" escrito à mão, sem descrição
+    r = app_client.post("/api/pedidos", json={"item_id": sw, "dados": {"software": ["7-Zip", "SPSS 29"]}})
+    assert r.status_code == 201
+    d = app_client.get(f"/api/pedidos/{r.json()['id']}").json()
+    assert d["titulo"] == "Instalação de software: 7-Zip, SPSS 29"
+    assert d["respostas"] == [{"campo": "Que programas?", "valor": "7-Zip, SPSS 29"}]
+    # sem formulário ("Outro pedido") a descrição continua obrigatória
+    assert app_client.post("/api/pedidos", json={"item_id": item(app_client, "Outro pedido")}).status_code == 409
+
+
+def test_catalogo_rejeita_campos_mal_definidos(app_client):
+    entrar(app_client, "antonio.godinho")
+    base = {"nome": "Teste", "tipo": "outro"}
+    assert app_client.post("/api/catalogo", json={**base, "campos": "{nao json"}).status_code == 422
+    assert app_client.post("/api/catalogo", json={**base, "campos": '[{"id": "x", "rotulo": "X", "tipo": "opcoes"}]'}).status_code == 422
+    assert app_client.post("/api/catalogo", json={**base, "campos": '[{"id": "x", "rotulo": "X", "tipo": "texto"}]'}).status_code == 201
+
+
+# ---------- automação: desbloquear conta no AD ----------
+
+@pytest.fixture()
+def ad_falso(monkeypatch):
+    from portal import automacoes
+
+    chamadas = []
+
+    def executor(script):
+        chamadas.append(script)
+        return 0, "DESBLOQUEADA jsebastiao"
+
+    monkeypatch.setattr(automacoes, "executor", executor)
+    monkeypatch.setenv("PORTAL_AUTOMACAO_AD", "1")
+    return chamadas
+
+
+def _desbloqueio(app_client, sistema="Windows / rede", para=None):
+    corpo = {"item_id": item(app_client, "Desbloquear conta ou repor palavra-passe"),
+             "dados": {"sistema": sistema, "situacao": "Conta bloqueada"}}
+    if para:
+        corpo["beneficiario_id"] = uid(para)
+    return app_client.post("/api/pedidos", json=corpo).json()["id"]
+
+
+def test_automacao_com_um_clique_do_tecnico(app_client, ad_falso):
+    entrar(app_client, "joana.sebastiao")
+    pid = _desbloqueio(app_client)
+    assert app_client.get(f"/api/pedidos/{pid}").json()["estado"] == "novo"  # sem modo imediato, espera técnico
+    assert "automatizar" not in app_client.get(f"/api/pedidos/{pid}").json()["accoes"]
+    entrar(app_client, "paulo.cassule")
+    d = app_client.get(f"/api/pedidos/{pid}").json()
+    assert d["accoes"][0] == "automatizar" and d["automacao"] == "Desbloquear conta no Active Directory"
+    assert app_client.post(f"/api/pedidos/{pid}/accoes/automatizar", json={}).json()["estado"] == "resolvido"
+    assert "joana.sebastiao@mhais.example" in ad_falso[0]
+    eventos = [e["accao"] for e in app_client.get(f"/api/pedidos/{pid}").json()["eventos"]]
+    assert eventos[-2:] == ["automacao", "resolvido"]
+
+
+def test_automacao_imediata_so_para_o_proprio(app_client, ad_falso, monkeypatch):
+    monkeypatch.setenv("PORTAL_AUTOMACAO_IMEDIATA", "1")
+    entrar(app_client, "joana.sebastiao")
+    proprio = _desbloqueio(app_client)
+    assert app_client.get(f"/api/pedidos/{proprio}").json()["estado"] == "resolvido"
+    outro = _desbloqueio(app_client, para="ricardo.manuel")  # A pede para B: passa sempre por um técnico
+    assert app_client.get(f"/api/pedidos/{outro}").json()["estado"] == "novo"
+    anywhere = _desbloqueio(app_client, sistema="Anywhere")  # automação só para contas Windows
+    assert app_client.get(f"/api/pedidos/{anywhere}").json()["estado"] == "novo"
+    assert len(ad_falso) == 1
+
+
+def test_automacao_falhada_fica_para_o_tecnico(app_client, monkeypatch):
+    from portal import automacoes
+
+    monkeypatch.setenv("PORTAL_AUTOMACAO_AD", "1")
+    monkeypatch.setattr(automacoes, "executor", lambda s: (2, "NAO_ENCONTRADO"))
+    entrar(app_client, "joana.sebastiao")
+    pid = _desbloqueio(app_client)
+    entrar(app_client, "paulo.cassule")
+    assert app_client.post(f"/api/pedidos/{pid}/accoes/automatizar", json={}).json()["estado"] == "novo"
+    ev = app_client.get(f"/api/pedidos/{pid}").json()["eventos"][-1]
+    assert ev["accao"] == "automacao" and "não encontrado" in ev["detalhe"]
+
+
+def test_automacao_recusa_email_perigoso():
+    from portal.automacoes import desbloquear_ad
+
+    ok, msg = desbloquear_ad("x'; Remove-ADUser -Identity admin; '@mhais.co.ao")
+    assert not ok and "formato inválido" in msg

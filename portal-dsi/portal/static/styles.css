@@ -172,3 +172,20 @@ footer { width: 100%; max-width: 1240px; margin: 0 auto; padding: 16px; color: v
 }
 body.ecra-entrada footer { border-top: 0; text-align: center; }
 body.ecra-entrada footer, body.ecra-entrada footer a { color: var(--texto); }
+
+/* ---------- formulário guiado ---------- */
+.campo-guiado { display: flex; flex-direction: column; gap: 8px; }
+.campo-guiado .rotulo { font-weight: 600; font-size: 14.5px; }
+.campo-guiado .obrig { color: var(--primaria); }
+.pilulas { display: flex; flex-wrap: wrap; gap: 8px; }
+.pilula { border-radius: 999px; padding: 8px 16px; font-size: 14px; background: var(--cartao); }
+.pilula.activo { background: var(--primaria); color: var(--primaria-txt); border-color: var(--primaria); font-weight: 600; }
+.pilula.activo::before { content: "✓"; margin-right: 2px; }
+.campo-guiado .outro { margin-top: 2px; }
+.respostas { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 16px 0 0; font-size: 14px; }
+.respostas dt { color: var(--suave); }
+.respostas dd { margin: 0; font-weight: 600; }
+.dica { display: flex; gap: 8px; align-items: center; margin: 14px 0 0; padding: 10px 12px; border-radius: 10px;
+        background: var(--primaria-suave); color: var(--primaria); font-size: 14px; font-weight: 600; }
+.dica svg { width: 18px; height: 18px; flex: none; }
+#dialogo-corpo textarea[name=campos] { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; min-height: 180px; }

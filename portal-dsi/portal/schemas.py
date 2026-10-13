@@ -3,7 +3,7 @@
 from datetime import date, datetime
 from typing import Annotated, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, create_model
+from pydantic import BaseModel, ConfigDict, Field, create_model, model_validator
 
 Perfil = Literal["colaborador", "helpdesk", "admin"]
 TipoPedido = Literal["acesso", "anywhere", "equipamento", "licenca", "intervencao", "outro"]
@@ -41,6 +41,18 @@ class ItemCatalogoIn(_Base):
     requer_aprovacao: bool = False
     prioridade_padrao: Prioridade = "media"
     activo: bool = True
+    campos: str | None = None
+    automacao: Literal["desbloquear_ad"] | None = None
+
+    @model_validator(mode="after")
+    def _campos_validos(self):
+        from .formularios import ler
+
+        try:
+            ler(self.campos)
+        except (ValueError, TypeError) as exc:  # JSON inválido ou campo mal definido
+            raise ValueError(f"campos: {exc}")
+        return self
 
 
 class EquipamentoIn(_Base):
@@ -86,8 +98,9 @@ LicencaOut = _out_of(LicencaIn, usadas=(int, 0), livres=(int, 0))
 
 
 class PedidoIn(BaseModel):
-    titulo: str = Field(min_length=3, max_length=200)
-    descricao: str = Field(min_length=3, max_length=5000)
+    titulo: str | None = Field(None, max_length=200)  # gerado a partir das respostas se vier vazio
+    descricao: str = Field("", max_length=5000)
+    dados: dict | None = None
     beneficiario_id: int | None = None
     item_id: int | None = None
     tipo: TipoPedido | None = None

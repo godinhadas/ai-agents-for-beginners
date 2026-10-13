@@ -17,6 +17,7 @@ const ROTULOS = {
   criado: "Pedido criado", aguarda_aprovacao: "A aguardar aprovação da DSI", aprovado: "Aprovado",
   prioridade: "Prioridade alterada", reaberto: "Reaberto", equipamento_entregue: "Equipamento entregue",
   licenca_atribuida: "Licença atribuída", resposta_colaborador: "Resposta do colaborador",
+  desbloquear_ad: "Desbloquear conta no Active Directory",
 };
 const rot = (v) => ROTULOS[v] ?? v;
 const CLASSE = { em_aprovacao: "alerta", aguarda_colaborador: "alerta", resolvido: "ok", fechado: "", recusado: "perigo",
@@ -241,36 +242,88 @@ async function vistaPedidos() {
 }
 
 // ---------- novo pedido ----------
+function campoGuiado(c) {
+  const obrig = c.obrigatorio ? ' <span class="obrig">*</span>' : "";
+  let corpo;
+  if (c.tipo === "opcoes" || c.tipo === "multi") {
+    corpo = `<div class="pilulas" data-campo="${esc(c.id)}" data-tipo="${c.tipo}">${c.opcoes.map((o) =>
+      `<button type="button" class="pilula" data-valor="${esc(o)}">${esc(o)}</button>`).join("")}</div>
+      ${c.tipo === "multi" && c.outro ? `<input class="outro" data-outro="${esc(c.id)}" placeholder="Outro, não está na lista? Escreve aqui (separa por vírgulas)">` : ""}`;
+  } else if (c.tipo === "data") {
+    corpo = `<input type="date" data-campo="${esc(c.id)}" data-tipo="data" style="max-width:220px">`;
+  } else {
+    corpo = `<input data-campo="${esc(c.id)}" data-tipo="texto" placeholder="${esc(c.ajuda || "")}">`;
+  }
+  return `<div class="campo-guiado"><div class="rotulo">${esc(c.rotulo)}${obrig}</div>${corpo}</div>`;
+}
+
+function lerGuiado(form, campos) {
+  const dados = {};
+  for (const c of campos) {
+    if (c.tipo === "opcoes" || c.tipo === "multi") {
+      const sel = [...form.querySelectorAll(`[data-campo="${CSS.escape(c.id)}"] .pilula.activo`)].map((b) => b.dataset.valor);
+      if (c.tipo === "multi") {
+        const outro = form.querySelector(`[data-outro="${CSS.escape(c.id)}"]`);
+        if (outro) sel.push(...outro.value.split(",").map((x) => x.trim()).filter(Boolean));
+        if (sel.length) dados[c.id] = sel;
+      } else if (sel[0]) dados[c.id] = sel[0];
+    } else {
+      const v = form.querySelector(`[data-campo="${CSS.escape(c.id)}"]`).value.trim();
+      if (v) dados[c.id] = v;
+    }
+  }
+  return dados;
+}
+
 async function vistaNovo(itemId) {
   const [catalogo, utilizadores] = await Promise.all([api("/api/catalogo?activo=true"), carregar("utilizadores", "/api/utilizadores?activo=true")]);
   const item = catalogo.find((c) => c.id === itemId);
   if (!item) { location.hash = "inicio"; return; }
+  let campos = [];
+  try { campos = item.campos ? JSON.parse(item.campos) : []; } catch { campos = []; }
+  const colegas = utilizadores.filter((u) => u.id !== eu.id);
   conteudo.innerHTML = `
-    <form class="cartao" id="form-novo" style="max-width:760px;margin:0 auto;display:grid;gap:16px">
+    <form class="cartao" id="form-novo" style="max-width:820px;margin:0 auto;display:grid;gap:18px">
       <div class="item-escolhido">
         <span class="icone">${icone(item.icone)}</span>
         <div style="flex:1"><strong>${esc(item.nome)}</strong><br><small style="color:var(--suave)">${esc(rot(item.tipo))}${item.requer_aprovacao ? " · requer aprovação da DSI" : ""}</small></div>
         <button type="button" class="ligacao" onclick="location.hash='inicio'">Mudar</button>
       </div>
-      <label class="campo">Para quem é?
-        <select name="beneficiario_id">
-          <option value="${eu.id}">Para mim</option>
-          ${utilizadores.filter((u) => u.id !== eu.id).map((u) => `<option value="${u.id}">Em nome de ${esc(u.nome)}</option>`).join("")}
-        </select></label>
-      <label class="campo">Assunto *<input name="titulo" required minlength="3" maxlength="200" value="${esc(item.nome)}"></label>
-      <label class="campo">Descreve o pedido *<textarea name="descricao" required minlength="3" rows="6" placeholder="O que precisas ou o que se passa, desde quando, mensagens de erro, para que é necessário..."></textarea></label>
-      <label class="campo">Urgência
-        <select name="prioridade"><option value="">Normal (${esc(rot(item.prioridade_padrao))})</option>
-          ${(staff() ? ["critica", "alta", "media", "baixa"] : ["alta", "media", "baixa"]).map((p) => `<option value="${p}">${rot(p)}</option>`).join("")}
-        </select></label>
+      <div class="campo-guiado"><div class="rotulo">Para quem é?</div>
+        <div class="pilulas" id="para"><button type="button" class="pilula activo" data-valor="eu">Para mim</button><button type="button" class="pilula" data-valor="outro">Para outra pessoa</button></div>
+        <div id="escolher-pessoa" hidden>
+          <input id="pessoa" list="lista-pessoas" placeholder="Escreve o nome do colega" autocomplete="off">
+          <datalist id="lista-pessoas">${colegas.map((u) => `<option value="${esc(u.nome)}"></option>`).join("")}</datalist>
+        </div>
+      </div>
+      ${campos.map(campoGuiado).join("")}
+      <div class="campo-guiado"><div class="rotulo">${campos.length ? "Detalhes (opcional)" : 'Descreve o pedido <span class="obrig">*</span>'}</div>
+        <textarea name="descricao" rows="${campos.length ? 3 : 6}" placeholder="${campos.length ? "Algo mais que a DSI deva saber?" : "O que precisas ou o que se passa, desde quando, mensagens de erro..."}"></textarea></div>
+      <div class="campo-guiado"><div class="rotulo">Urgência</div>
+        <div class="pilulas" id="urgencia"><button type="button" class="pilula activo" data-valor="">Normal</button>
+          <button type="button" class="pilula" data-valor="alta">Urgente</button>${staff() ? '<button type="button" class="pilula" data-valor="critica">Crítico (serviço parado)</button>' : ""}</div></div>
       <p class="erro" id="erro-novo"></p>
       <div style="display:flex;gap:8px"><button class="primario">Enviar pedido</button><button type="button" onclick="location.hash='inicio'">Cancelar</button></div>
     </form>`;
-  $("form-novo").onsubmit = async (e) => {
+  const form = $("form-novo");
+  form.querySelectorAll(".pilulas").forEach((g) => g.addEventListener("click", (e) => {
+    const b = e.target.closest(".pilula");
+    if (!b) return;
+    if (g.dataset.tipo === "multi") b.classList.toggle("activo");
+    else { g.querySelectorAll(".pilula").forEach((x) => x.classList.toggle("activo", x === b)); }
+    if (g.id === "para") $("escolher-pessoa").hidden = b.dataset.valor !== "outro";
+  }));
+  form.onsubmit = async (e) => {
     e.preventDefault();
-    const f = e.target.elements;
-    const corpo = { titulo: f.titulo.value, descricao: f.descricao.value, beneficiario_id: Number(f.beneficiario_id.value),
-      item_id: item.id, prioridade: f.prioridade.value || null };
+    let beneficiario_id = eu.id;
+    if (form.querySelector("#para .activo").dataset.valor === "outro") {
+      const nome = $("pessoa").value.trim();
+      const pessoa = colegas.find((u) => u.nome.toLowerCase() === nome.toLowerCase());
+      if (!pessoa) { $("erro-novo").textContent = "Escolhe o colega a partir da lista de nomes."; return; }
+      beneficiario_id = pessoa.id;
+    }
+    const corpo = { item_id: item.id, beneficiario_id, dados: lerGuiado(form, campos),
+      descricao: form.elements.descricao.value, prioridade: form.querySelector("#urgencia .activo").dataset.valor || null };
     try {
       const r = await api("/api/pedidos", { method: "POST", body: JSON.stringify(corpo) });
       location.hash = `pedido/${r.id}`;
@@ -280,6 +333,7 @@ async function vistaNovo(itemId) {
 
 // ---------- detalhe do pedido ----------
 const ACCOES = {
+  automatizar: { l: "Executar automaticamente", primario: true, directo: true, icone: "definicoes" },
   aprovar: { l: "Aprovar", primario: true, campos: [["motivo", "Observação (opcional)", "textarea"]] },
   recusar: { l: "Recusar", campos: [["motivo", "Motivo da recusa *", "textarea", true]] },
   assumir: { l: "Assumir", primario: true, directo: true },
@@ -293,14 +347,14 @@ const ACCOES = {
   fechar: { l: "Confirmar e fechar", primario: true, directo: true },
   cancelar: { l: "Cancelar pedido", campos: [["motivo", "Motivo (opcional)", "textarea"]] },
 };
-const EVENTOS = { atribuido: "Atribuído", aguarda_colaborador: "A aguardar colaborador", resolvido: "Resolvido", fechado: "Fechado", recusado: "Recusado", cancelado: "Cancelado" };
+const EVENTOS = { automacao: "Automação", atribuido: "Atribuído", aguarda_colaborador: "A aguardar colaborador", resolvido: "Resolvido", fechado: "Fechado", recusado: "Recusado", cancelado: "Cancelado" };
 
 async function vistaPedido(id) {
   const p = await api(`/api/pedidos/${id}`);
   conteudo.innerHTML = `
     <div class="cabecalho">
       <div><h1>${esc(p.numero)} · ${esc(p.titulo)}</h1><div style="margin-top:6px">${etiqueta(p.estado)} ${etiqueta(p.prioridade)} ${etiqueta(p.sla)}</div></div>
-      <div class="accoes-pedido">${p.accoes.map((a) => `<button data-accao="${a}" class="${ACCOES[a]?.primario ? "primario" : ""}">${esc(ACCOES[a]?.l ?? a)}</button>`).join("")}</div>
+      <div class="accoes-pedido">${p.accoes.map((a) => `<button data-accao="${a}" class="${ACCOES[a]?.primario ? "primario" : ""}" ${a === "automatizar" ? `title="${esc(p.automacao || "")}"` : ""}>${ACCOES[a]?.icone ? icone(ACCOES[a].icone) : ""}${esc(ACCOES[a]?.l ?? a)}</button>`).join("")}</div>
     </div>
     <div class="duas-colunas">
       <div>
@@ -315,7 +369,9 @@ async function vistaPedido(id) {
             <div><span>Prazo de resposta</span>${dataHora(p.prazo_resposta)}</div>
             <div><span>Prazo de resolução</span>${dataHora(p.prazo_resolucao)}</div>
           </div>
-          <p class="descricao">${esc(p.descricao)}</p>
+          ${p.respostas.length ? `<dl class="respostas">${p.respostas.map((r) => `<dt>${esc(r.campo)}</dt><dd>${esc(r.valor)}</dd>`).join("")}</dl>` : ""}
+          ${p.descricao ? `<p class="descricao">${esc(p.descricao)}</p>` : ""}
+          ${p.automacao && p.accoes.includes("automatizar") ? `<p class="dica">${icone("definicoes")} Este pedido pode ser resolvido automaticamente: ${esc(p.automacao)}.</p>` : ""}
         </section>
         <section class="cartao">
           <h2>Comentários</h2>
@@ -436,7 +492,9 @@ const ENTIDADES = {
     campos: [["nome", "Nome *", "text", true], ["tipo", "Categoria *", "select", true, ["acesso", "anywhere", "equipamento", "licenca", "intervencao", "outro"]],
       ["descricao", "Descrição curta (aparece no mosaico)"], ["icone", "Ícone", "select", true, Object.keys(ICONES)], ["ordem", "Ordem", "number"],
       ["prioridade_padrao", "Prioridade por omissão", "select", true, ["critica", "alta", "media", "baixa"]],
-      ["requer_aprovacao", "Requer aprovação da DSI", "checkbox"], ["activo", "Activo", "checkbox"]],
+      ["requer_aprovacao", "Requer aprovação da DSI", "checkbox"], ["activo", "Activo", "checkbox"],
+      ["automacao", "Automação", "select", false, ["desbloquear_ad"]],
+      ["campos", "Formulário (JSON: perguntas e opções)", "textarea"]],
     colunas: [["icone", "", (v) => `<span style="display:inline-block;width:20px;height:20px;color:var(--primaria)">${icone(v)}</span>`],
       ["nome", "Nome"], ["tipo", "Categoria", rot], ["prioridade_padrao", "Prioridade", etiqueta],
       ["requer_aprovacao", "Aprovação", (v) => (v ? "Sim" : "Não")], ["activo", "Activo", (v) => (v ? "Sim" : "Não")]],

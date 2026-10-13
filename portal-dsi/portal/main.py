@@ -18,7 +18,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import auth, db as dbmod, entra, graph as graphmod, pedidos as wf, schemas as s, seed, sincronizacao, sla, tarefas
+from . import auth, automacoes, db as dbmod, formularios, entra, graph as graphmod, pedidos as wf, schemas as s, seed, sincronizacao, sla, tarefas
 from .auth import STAFF, exigir, utilizador_actual
 from .db import get_db
 from .models import (AtribuicaoLicenca, Departamento, Equipamento, ItemCatalogo, Licenca, Notificacao, Pedido,
@@ -297,6 +297,8 @@ def detalhe_pedido(pedido_id: int, db: Session = Depends(get_db), u: Utilizador 
         "prazo_resposta": p.prazo_resposta,
         "primeira_resposta_em": p.primeira_resposta_em,
         "resolvido_em": p.resolvido_em,
+        "respostas": formularios.linhas(p.item.campos if p.item else None, p.dados),
+        "automacao": automacoes.DESCRICAO.get(p.item.automacao) if p.item and automacoes.aplicavel(p) else None,
         "accoes": wf.accoes(u, p),
         "comentarios": [
             {"id": c.id, "autor": c.autor.nome, "texto": c.texto, "interno": c.interno, "criado_em": c.criado_em}

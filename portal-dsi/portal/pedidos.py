@@ -10,7 +10,9 @@ from datetime import datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from . import notificacoes, sla
+import json
+
+from . import automacoes, formularios, notificacoes, sla
 from .models import (AtribuicaoLicenca, Comentario, Equipamento, Evento, ItemCatalogo, Licenca, Pedido,
                      Utilizador, agora)
 
@@ -42,9 +44,9 @@ def _iniciar_sla(p: Pedido, inicio: datetime) -> None:
     p.prazo_resposta, p.prazo_resolucao = sla.prazos(p.prioridade, inicio)
 
 
-def criar(db: Session, u: Utilizador, *, titulo: str, descricao: str, beneficiario_id: int | None = None,
-          item_id: int | None = None, tipo: str | None = None, prioridade: str | None = None,
-          origem: str = "portal") -> Pedido:
+def criar(db: Session, u: Utilizador, *, titulo: str | None = None, descricao: str = "",
+          beneficiario_id: int | None = None, item_id: int | None = None, tipo: str | None = None,
+          prioridade: str | None = None, origem: str = "portal", dados: dict | None = None) -> Pedido:
     beneficiario = db.get(Utilizador, beneficiario_id or u.id)
     if beneficiario is None or not beneficiario.activo:
         raise ValueError("Beneficiário inexistente ou inactivo.")
@@ -56,13 +58,22 @@ def criar(db: Session, u: Utilizador, *, titulo: str, descricao: str, beneficiar
     tipo = item.tipo if item else tipo
     if tipo is None:
         raise ValueError("Indica o item do catálogo ou o tipo de pedido.")
+    respostas = formularios.validar(item.campos if item else None, dados)
+    descricao = (descricao or "").strip()
+    if not respostas and len(descricao) < 3:
+        raise ValueError("Descreve o pedido.")
+    titulo = (titulo or "").strip()
+    if len(titulo) < 3:
+        base = item.nome if item else "Pedido"
+        titulo = f"{base}: {formularios.resumo(respostas)}" if respostas else base
+    titulo = titulo[:200]
     prioridade = prioridade or (item.prioridade_padrao if item else "media")
     if prioridade == "critica" and not staff(u):
         prioridade = "alta"  # só a DSI classifica como crítico, para evitar abusos
 
     momento = agora()
     p = Pedido(titulo=titulo, descricao=descricao, tipo=tipo, item=item, prioridade=prioridade, estado="novo",
-               origem=origem, criado_por_id=u.id, beneficiario=beneficiario, criado_em=momento, actualizado_em=momento)
+               origem=origem, dados=json.dumps(respostas, ensure_ascii=False) if respostas else None, criado_por_id=u.id, beneficiario=beneficiario, criado_em=momento, actualizado_em=momento)
     _iniciar_sla(p, momento)
     db.add(p)
     db.flush()
@@ -80,10 +91,25 @@ def criar(db: Session, u: Utilizador, *, titulo: str, descricao: str, beneficiar
             _evento(db, p, None, "aguarda_aprovacao")
     else:
         p.estado = "novo"
+    if p.estado == "novo" and automacoes.imediata(p):
+        _automatizar(db, p, u)
     if p.estado == "novo":
         notificacoes.novo_para_helpdesk(db, p)
     db.commit()
     return p
+
+
+def _automatizar(db: Session, p: Pedido, u: Utilizador) -> bool:
+    ok, msg = automacoes.executar(p)
+    _evento(db, p, u if staff(u) else None, "automacao", ("Concluída: " if ok else "Falhou: ") + msg)
+    if ok:
+        p.estado = "resolvido"
+        p.resolvido_em = agora()
+        p.primeira_resposta_em = p.primeira_resposta_em or p.resolvido_em
+        if staff(u):
+            p.tecnico_id = p.tecnico_id or u.id
+        _evento(db, p, u if staff(u) else None, "resolvido", f"Resolvido automaticamente. {msg}")
+    return ok
 
 
 def accoes(u: Utilizador, p: Pedido) -> list[str]:
@@ -99,6 +125,8 @@ def accoes(u: Utilizador, p: Pedido) -> list[str]:
         if p.estado != "aguarda_colaborador":
             a.append("aguardar")
         a.append("resolver")
+        if automacoes.aplicavel(p):
+            a.insert(0, "automatizar")
         if inventario_activo():
             a += ["entregar_equipamento", "atribuir_licenca"]
     if p.estado == "resolvido" and (envolvido or staff(u)):
@@ -165,6 +193,9 @@ def executar(db: Session, u: Utilizador, p: Pedido, accao: str, dados: dict) -> 
         p.estado = "fechado"
         p.fechado_em = momento
         _evento(db, p, u, "fechado", motivo)
+    elif accao == "automatizar":
+        if not _automatizar(db, p, u):
+            p.primeira_resposta_em = p.primeira_resposta_em or momento
     elif accao == "cancelar":
         p.estado = "cancelado"
         p.fechado_em = momento

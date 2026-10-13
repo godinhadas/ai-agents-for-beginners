@@ -63,7 +63,7 @@ def test_notificacoes_seguem_o_circuito(db):
     db.commit()
     joana, antonio, paulo = user(db, "joana"), user(db, "antonio"), user(db, "paulo")
     monitor = db.scalar(select(ItemCatalogo.id).where(ItemCatalogo.nome == "Monitor"))
-    p = wf.criar(db, joana, titulo="Monitor", descricao="x", item_id=monitor)
+    p = wf.criar(db, joana, titulo="Monitor", descricao="Segundo monitor", item_id=monitor, dados={"quantidade": "1"})
     dest = lambda: sorted(n.para.split("@")[0] for n in db.scalars(select(Notificacao).where(Notificacao.pedido_id == p.id)))
     # a própria Joana não recebe aviso do que fez; a DSI recebe o pedido de aprovação
     assert dest() == ["antonio.godinho"]
