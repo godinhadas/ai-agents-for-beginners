@@ -119,6 +119,20 @@ class Evento(Base):
     autor: Mapped[Utilizador | None] = relationship()
 
 
+class Leitura(Base):
+    """Última vez que o utilizador abriu o pedido (para as novidades por ler)."""
+
+    __tablename__ = "leituras"
+    __table_args__ = (UniqueConstraint("utilizador_id", "pedido_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    utilizador_id: Mapped[int] = mapped_column(ForeignKey("utilizadores.id"), index=True)
+    pedido_id: Mapped[int] = mapped_column(ForeignKey("pedidos.id"))
+    visto_em: Mapped[datetime] = mapped_column(DateTime, default=agora)
+    comentario_id: Mapped[int] = mapped_column(Integer, default=0)  # última mensagem vista
+    evento_id: Mapped[int] = mapped_column(Integer, default=0)  # último evento visto
+
+
 class Equipamento(Base):
     __tablename__ = "equipamentos"
 

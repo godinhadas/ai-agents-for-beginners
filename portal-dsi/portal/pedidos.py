@@ -130,8 +130,14 @@ def accoes(u: Utilizador, p: Pedido) -> list[str]:
             a.insert(0, "automatizar")
         if inventario_activo():
             a += ["entregar_equipamento", "atribuir_licenca"]
-    if p.estado == "resolvido" and (envolvido or staff(u)):
-        a += ["reabrir", "fechar"]
+    # Só quem pediu confirma a resolução; sem resposta, fecha sozinho ao fim de DIAS_FECHO_AUTOMATICO dias.
+    if p.estado == "resolvido":
+        if envolvido:
+            a.append("fechar")
+        if envolvido or staff(u):
+            a.append("reabrir")
+    if p.estado == "fechado" and envolvido and p.fechado_em and p.fechado_em >= agora() - timedelta(days=DIAS_FECHO_AUTOMATICO):
+        a.append("reabrir")
     if p.estado in ("em_aprovacao", "novo") and (envolvido or staff(u)):
         a.append("cancelar")
     return a
@@ -189,6 +195,7 @@ def executar(db: Session, u: Utilizador, p: Pedido, accao: str, dados: dict) -> 
             raise ValueError("Indica porque reabres o pedido.")
         p.estado = "em_curso"
         p.resolvido_em = None
+        p.fechado_em = None
         _evento(db, p, u, "reaberto", motivo)
     elif accao == "fechar":
         p.estado = "fechado"

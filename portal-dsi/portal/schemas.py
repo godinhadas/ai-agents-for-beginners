@@ -121,8 +121,11 @@ class PedidoResumo(BaseModel):
     criado_em: datetime
     actualizado_em: datetime
     prazo_resolucao: datetime
+    prazo_resposta: datetime | None = None
+    resolvido_em: datetime | None = None
     sla: str
     origem: str = "portal"
+    novidade: bool = False
 
 
 class ComentarioIn(BaseModel):

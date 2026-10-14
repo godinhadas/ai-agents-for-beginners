@@ -76,6 +76,7 @@ const ICONES = {
   pessoa_mais: '<circle cx="10" cy="8" r="4"/><path d="M3 21a7 7 0 0 1 14 0M19 8v6M16 11h6"/>',
   setas: '<path d="M7 4v16M7 4 3 8M7 4l4 4M17 20V4M17 20l-4-4M17 20l4-4"/>',
   lixo: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+  sino: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 21h4"/>',
   cima: '<path d="M6 15l6-6 6 6"/>', baixo: '<path d="M6 9l6 6 6-6"/>',
 };
 // Ícones disponíveis para os itens do catálogo (os restantes são da própria interface).
@@ -118,7 +119,7 @@ const vazio = (texto, ic = "caixa", accao = "") => `<div class="estado-vazio">${
 function aviso(texto, tipo = "ok") {
   const el = document.createElement("div");
   el.className = `aviso ${tipo}`;
-  el.innerHTML = `${icone(tipo === "ok" ? "certo" : "alerta")}<span>${esc(texto)}</span>`;
+  el.innerHTML = `${icone(tipo === "ok" ? "certo" : tipo === "info" ? "sino" : "alerta")}<span>${esc(texto)}</span>`;
   $("avisos").appendChild(el);
   setTimeout(() => el.classList.add("sair"), 3200);
   setTimeout(() => el.remove(), 3700);
@@ -155,13 +156,19 @@ function tabela(linhas, colunas, { editar = false, clicavel = false, vazioTexto 
     (editar ? `<td><div class="acoes"><button class="pequeno" data-editar="${o.id}">${icone("lapis")}Editar</button></div></td>` : "") + "</tr>").join("");
   return `<div class="tabela"><table><thead><tr>${cab}</tr></thead><tbody>${corpo}</tbody></table></div>`;
 }
-const assuntoPedido = (v, o) => `<div class="assunto"><span class="mini-icone">${icone(ICONE_TIPO[o.tipo])}</span><div><strong>${esc(o.numero)}</strong> ${esc(v)}${o.beneficiario !== eu.nome ? `<small>Para ${esc(o.beneficiario)}</small>` : ""}</div></div>`;
+const assuntoPedido = (v, o) => `<div class="assunto${o.novidade ? " por-ler" : ""}"><span class="mini-icone">${icone(ICONE_TIPO[o.tipo])}${o.novidade ? '<i class="ponto" title="Novidades por ler"></i>' : ""}</span><div><strong>${esc(o.numero)}</strong> ${esc(v)}${o.beneficiario !== eu.nome ? `<small>Para ${esc(o.beneficiario)}</small>` : ""}</div></div>`;
 function colunasPedido() {
   const c = [["titulo", "Pedido", assuntoPedido], ["estado", "Estado", etiqueta]];
   if (staff()) c.push(["prioridade", "Urgência", (v) => (v === "alta" || v === "critica" ? etiqueta(v) : "")], ["tecnico", "Técnico", (v) => esc(v || "Por atribuir")]);
-  c.push(["actualizado_em", "Actualizado", dataHora]);
-  if (staff()) c.push(["sla", "Prazo", etiqueta]);
+  c.push(["actualizado_em", "Actualizado", dataHora], ["prazo_resolucao", "Prazo", prazoCelula]);
   return c;
+}
+// Prazo de resolução (SLA) com o estado: no prazo, em risco, fora de prazo, cumprido.
+function prazoCelula(v, o) {
+  if (o.estado === "em_aprovacao") return '<span class="prazo"><small>Conta após aprovação</small></span>';
+  if (["recusado", "cancelado"].includes(o.estado)) return "";
+  const data = o.resolvido_em ? `Resolvido ${dataHora(o.resolvido_em)}` : `Até ${dataHora(v)}`;
+  return `<span class="prazo">${etiqueta(o.sla)}<small>${esc(data)}</small></span>`;
 }
 const kpi = (r, v, nota = "", ic = "lista") => `<div class="cartao kpi"><span class="kpi-icone">${icone(ic)}</span><div><div class="rotulo">${esc(r)}</div><div class="valor">${esc(v)}</div><div class="nota">${esc(nota)}</div></div></div>`;
 const barra = (r, frac, v) => `<div class="barra-h"><span>${esc(r)}</span><div class="trilho"><div class="enchimento" style="width:${(frac * 100).toFixed(1)}%"></div></div><span style="text-align:right">${esc(v)}</span></div>`;
@@ -230,9 +237,68 @@ function itensNav() {
 function desenharNav() {
   document.body.classList.remove("ecra-entrada");
   nav.innerHTML = itensNav().map(([id, l, ic]) => `<button data-sec="${id}">${icone(ic)}<span>${l}</span><span class="contador" data-contador="${id}" hidden></span></button>`).join("");
-  $("utilizador").innerHTML = `<span class="quem"><strong>${esc(eu.nome)}</strong><small>${esc(rot(eu.perfil))}</small></span><button id="sair" class="botao" title="Sair">${icone("sair")}<span>Sair</span></button>`;
+  $("utilizador").innerHTML = `<div class="sino-caixa"><button id="sino" class="botao sino" title="Novidades">${icone("sino")}<span class="contador" id="sino-total" hidden></span></button><div id="sino-painel" class="sino-painel" hidden></div></div><span class="quem"><strong>${esc(eu.nome)}</strong><small>${esc(rot(eu.perfil))}</small></span><button id="sair" class="botao" title="Sair">${icone("sair")}<span>Sair</span></button>`;
   $("sair").onclick = async () => { await api("/api/auth/logout", { method: "POST" }); eu = null; location.hash = ""; mostrarLogin(); };
+  $("sino").onclick = (e) => { e.stopPropagation(); alternarSino(); };
+  novidadesVistas = null;
+  actualizarNovidades();
 }
+
+// ---------- novidades (sino) ----------
+// Verifica de 30 em 30 segundos; avisa dentro do portal e, se o browser permitir, com notificação do Windows.
+let novidades = { total: 0, pedidos: [], itens: [] }, novidadesVistas = null;
+async function actualizarNovidades() {
+  if (!eu) return;
+  try { novidades = await api("/api/novidades"); } catch { return; }
+  const t = $("sino-total");
+  if (t) { t.hidden = !novidades.total; t.textContent = novidades.total > 99 ? "99+" : novidades.total || ""; }
+  document.title = `${novidades.total ? `(${novidades.total}) ` : ""}${cfg.nome} · ${cfg.empresa}`;
+  const chaves = novidades.itens.map((i) => `${i.pedido_id}|${i.criado_em}|${i.texto}`);
+  if (novidadesVistas) {
+    const novas = novidades.itens.filter((i, k) => !novidadesVistas.has(chaves[k]));
+    if (novas.length) avisarNovidades(novas);
+  }
+  novidadesVistas = new Set(chaves);
+  if (!$("sino-painel")?.hidden) desenharSino();
+}
+function avisarNovidades(novas) {
+  const [sec, arg] = location.hash.slice(1).split("/");
+  const aberto = sec === "pedido" ? Number(arg) : null;
+  const deOutros = novas.filter((i) => i.pedido_id !== aberto);
+  if (aberto && novas.some((i) => i.pedido_id === aberto)) vistaPedido(aberto, { manterRascunho: true });
+  if (!deOutros.length) return;
+  const i = deOutros[0];
+  const texto = deOutros.length === 1 ? `${i.numero}: ${i.tipo === "mensagem" ? `mensagem de ${i.autor}` : i.texto}` : `${deOutros.length} novidades nos teus pedidos`;
+  aviso(texto, "info");
+  if ("Notification" in window && Notification.permission === "granted" && document.hidden) {
+    const n = new Notification(cfg.nome, { body: texto, icon: cfg.logo, tag: "gpd" });
+    n.onclick = () => { window.focus(); location.hash = `pedido/${i.pedido_id}`; n.close(); };
+  }
+  actualizarContadores();
+}
+setInterval(actualizarNovidades, 30000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) actualizarNovidades(); });
+
+function alternarSino() {
+  const painel = $("sino-painel");
+  painel.hidden = !painel.hidden;
+  if (!painel.hidden) {
+    desenharSino();
+    if ("Notification" in window && Notification.permission === "default") Notification.requestPermission();
+  }
+}
+function desenharSino() {
+  const painel = $("sino-painel");
+  painel.innerHTML = `<div class="sino-cab"><strong>Novidades</strong>${novidades.total ? '<button class="ligacao" id="sino-lidas">Marcar tudo como lido</button>' : ""}</div>
+    ${novidades.itens.length ? `<ul>${novidades.itens.map((i) => `<li><button data-novidade="${i.pedido_id}">
+      <span class="mini-icone">${icone(i.tipo === "mensagem" ? "mensagem" : "relogio")}</span>
+      <span><strong>${esc(i.numero)}</strong> ${esc(i.titulo)}<small>${i.tipo === "mensagem" ? `<b>${esc(i.autor)}:</b> ` : ""}${esc(i.texto)}</small><small class="quando">${dataHora(i.criado_em)}</small></span>
+    </button></li>`).join("")}</ul>` : '<p class="vazio">Sem novidades. Avisamos-te aqui quando houver mensagens ou mudanças nos teus pedidos.</p>'}`;
+  painel.querySelectorAll("[data-novidade]").forEach((b) => (b.onclick = () => { painel.hidden = true; location.hash = `pedido/${b.dataset.novidade}`; }));
+  const l = $("sino-lidas");
+  if (l) l.onclick = async () => { await api("/api/novidades/lidas", { method: "POST" }); await actualizarNovidades(); desenharSino(); if (location.hash.startsWith("#pedidos") || location.hash.startsWith("#inicio")) mostrar(); };
+}
+document.addEventListener("click", (e) => { const p = $("sino-painel"); if (p && !p.hidden && !e.target.closest(".sino-caixa")) p.hidden = true; });
 async function actualizarContadores() {
   try {
     const c = await api("/api/contadores");
@@ -326,7 +392,7 @@ async function vistaPedidos() {
       ${vistas.length ? `<div class="abas">${vistas.map(([v, l, n]) => `<button data-vista="${v}" class="${f.vista === v ? "activo" : ""}">${l}${n ? `<span class="contador">${n}</span>` : ""}</button>`).join("")}</div>` : ""}
       <div class="barra">
         <div class="segmentos">${estados.map(([v, l]) => `<button data-estado="${v}" class="${f.estado === v ? "activo" : ""}">${l}</button>`).join("")}</div>
-        <input type="search" id="pesquisa" placeholder="Pesquisar por assunto ou nº (ex.: PED-000012)" value="${esc(f.q)}">
+        <input type="search" id="pesquisa" placeholder="Pesquisar por nº (ex.: 12), assunto ou colega" value="${esc(f.q)}">
       </div>
     </div>
     <section class="cartao">${linhas.length ? tabela(linhas, colunasPedido(), { clicavel: true })
@@ -457,13 +523,13 @@ const ACCOES = {
   aprovar: { l: "Aprovar", tipo: "primario", ic: "certo", campos: [["motivo", "Observação (opcional)", "textarea"]], aviso: "Pedido aprovado." },
   assumir: { l: "Assumir pedido", tipo: "primario", ic: "utilizador", aviso: "Pedido atribuído a ti." },
   resolver: { l: "Resolver", tipo: "primario", ic: "certo", campos: [["motivo", "O que foi feito? *", "textarea", true]], aviso: "Pedido resolvido." },
-  fechar: { l: "Confirmar e fechar", tipo: "primario", ic: "certo", confirmar: "O pedido fica fechado. Se o problema voltar, faz um pedido novo.", aviso: "Pedido fechado." },
+  fechar: { l: "Sim, ficou resolvido", tipo: "primario", ic: "certo", confirmar: "O pedido fica fechado. Se o problema voltar nos próximos 5 dias, ainda o podes reabrir.", aviso: "Obrigado pela confirmação. Pedido fechado." },
   aguardar: { l: "Pedir informação", ic: "mensagem", campos: [["motivo", "O que precisas de saber? *", "textarea", true]], aviso: "Pedido de informação enviado." },
   atribuir: { l: "Atribuir", ic: "pessoa_mais", campos: [["tecnico_id", "Técnico *", "tecnico", true]], aviso: "Técnico atribuído." },
   prioridade: { l: "Alterar urgência", ic: "setas", campos: [["prioridade", "Nova urgência *", "prioridade", true]], aviso: "Urgência alterada." },
   entregar_equipamento: { l: "Entregar equipamento", ic: "portatil", campos: [["equipamento_id", "Equipamento em stock *", "equipamento", true]], aviso: "Equipamento entregue." },
   atribuir_licenca: { l: "Atribuir licença", ic: "insignia", campos: [["licenca_id", "Licença *", "licenca", true]], aviso: "Licença atribuída." },
-  reabrir: { l: "Reabrir", ic: "relogio", campos: [["motivo", "Porque reabres? *", "textarea", true]], aviso: "Pedido reaberto." },
+  reabrir: { l: "Reabrir", ic: "relogio", campos: [["motivo", "O que ainda não está resolvido? *", "textarea", true]], aviso: "Pedido reaberto. O técnico foi avisado." },
   recusar: { l: "Recusar", tipo: "perigo", ic: "cruz", campos: [["motivo", "Motivo da recusa *", "textarea", true]], aviso: "Pedido recusado." },
   cancelar: { l: "Cancelar pedido", tipo: "perigo", ic: "cruz", campos: [["motivo", "Motivo (opcional)", "textarea"]], aviso: "Pedido cancelado." },
 };
@@ -481,62 +547,115 @@ function etapas(p) {
   return `<ol class="etapas">${passos.map(([k, l], i) => `<li class="${i < idx || p.estado === "fechado" ? "feito" : i === idx ? "actual" : ""}">${l}</li>`).join("")}</ol>`;
 }
 
-async function vistaPedido(id) {
+// Etiqueta curta das mensagens que vêm de acções (pergunta, solução, motivo).
+const NA_CONVERSA = { aguarda_colaborador: "Pedido de informação", resolvido: "Solução aplicada", reaberto: "Pedido reaberto",
+  recusado: "Motivo da recusa", aprovado: "Aprovação", cancelado: "Motivo do cancelamento", fechado: "Fecho" };
+let separadorPedido = "conversa";
+
+function bolha(m, p) {
+  const minha = m.autor_id === eu.id;
+  const rotulo = m.tipo === "evento" ? `<span class="rotulo-accao">${esc(NA_CONVERSA[m.accao] || m.accao)}</span>` : "";
+  const nova = m.nova && !minha;
+  return `<div class="msg ${minha ? "minha" : "outra"} ${m.interno ? "interna" : ""} ${m.tipo === "evento" ? "accao" : ""} ${nova ? "nova" : ""}">
+    <div class="msg-cab"><strong>${esc(minha ? "Tu" : m.autor)}</strong>${m.dsi && !minha ? '<span class="etiqueta marca">DSI</span>' : ""}${m.interno ? '<span class="etiqueta alerta">Nota interna</span>' : ""}<small>${dataHora(m.criado_em)}</small></div>
+    ${rotulo}<p>${esc(m.texto)}</p></div>`;
+}
+
+async function vistaPedido(id, { manterRascunho = false } = {}) {
+  const rascunho = manterRascunho ? $("form-comentario")?.texto.value : "";
   const p = await api(`/api/pedidos/${id}`);
-  const accoes = ORDEM_ACCOES.filter((a) => p.accoes.includes(a));
+  actualizarNovidades();
+  const meuPedido = p.criado_por_id === eu.id || p.beneficiario_id === eu.id || [p.beneficiario, p.criado_por].includes(eu.nome);
+  const confirmarResolucao = p.estado === "resolvido" && p.accoes.includes("fechar");
+  const accoes = ORDEM_ACCOES.filter((a) => p.accoes.includes(a) && !(confirmarResolucao && (a === "fechar" || a === "reabrir")));
   const btn = (a) => `<button data-accao="${a}" class="${ACCOES[a].tipo === "primario" ? "primario" : ACCOES[a].tipo === "perigo" ? "perigo" : ""}">${icone(ACCOES[a].ic)}${esc(ACCOES[a].l)}</button>`;
-  const meuPedido = [p.beneficiario, p.criado_por].includes(eu.nome);
+  const encerrado = ["fechado", "recusado", "cancelado"].includes(p.estado);
+  const novas = p.conversa.filter((m) => m.nova && m.autor_id !== eu.id).length;
   conteudo.innerHTML = `
     <button class="voltar" onclick="history.length > 1 ? history.back() : (location.hash='pedidos')">${icone("voltar")}Voltar</button>
     <div class="pagina-cab pedido-cab">
       <div><small class="numero">${esc(p.numero)} · ${esc(rot(p.tipo))}</small><h1>${esc(p.titulo)}</h1>
-        <div class="etiquetas">${etiqueta(p.estado)}${p.prioridade === "alta" || p.prioridade === "critica" ? etiqueta(p.prioridade) : ""}${staff() ? etiqueta(p.sla) : ""}</div></div>
+        <div class="etiquetas">${etiqueta(p.estado)}${p.prioridade === "alta" || p.prioridade === "critica" ? etiqueta(p.prioridade) : ""}${etiqueta(p.sla)}</div></div>
     </div>
     ${etapas(p)}
-    ${p.estado === "aguarda_colaborador" && meuPedido && !staff() ? `<div class="dica">${icone("mensagem")} A DSI precisa de mais informação. Responde nos comentários abaixo.</div>` : ""}
+    ${confirmarResolucao ? `<section class="cartao confirmar-resolucao">
+        <h2>${icone("certo")} O técnico deu este pedido como resolvido</h2>
+        ${p.solucao ? `<p class="solucao"><span>O que foi feito</span>${esc(p.solucao)}</p>` : ""}
+        <p>Ficou mesmo resolvido? Se não responderes, o pedido fecha automaticamente a ${dataHora(p.fecho_automatico_em)}.</p>
+        <div class="barra-accoes"><button class="primario" data-accao="fechar">${icone("certo")}Sim, ficou resolvido</button>
+          <button class="perigo" data-accao="reabrir">${icone("cruz")}Não ficou resolvido</button></div>
+      </section>` : ""}
+    ${p.estado === "aguarda_colaborador" && meuPedido && !staff() ? `<div class="dica">${icone("mensagem")} A DSI precisa de mais informação. Responde na conversa abaixo.</div>` : ""}
+    ${p.estado === "fechado" && p.accoes.includes("reabrir") ? `<div class="dica">${icone("relogio")} O problema voltou? Ainda podes reabrir este pedido.</div>` : ""}
     ${accoes.length ? `<div class="barra-accoes">${accoes.map(btn).join("")}</div>` : ""}
     <div class="duas-colunas">
-      <div>
-        <section class="cartao" style="margin-bottom:16px">
-          <div class="meta">
-            <div><span>Para</span>${esc(p.beneficiario)}</div>
-            <div><span>Pedido por</span>${esc(p.criado_por)}</div>
-            <div><span>Técnico</span>${esc(p.tecnico || "Por atribuir")}</div>
-            ${p.aprovador ? `<div><span>Aprovado por</span>${esc(p.aprovador)}</div>` : ""}
-            <div><span>Registado em</span>${dataHora(p.criado_em)}${p.origem === "email" ? " · por email" : ""}</div>
-            ${staff() ? `<div><span>Prazo de resolução</span>${dataHora(p.prazo_resolucao)}</div>` : ""}
-          </div>
-          ${p.respostas.length ? `<dl class="respostas">${p.respostas.map((r) => `<dt>${esc(r.campo)}</dt><dd>${esc(r.valor)}</dd>`).join("")}</dl>` : ""}
-          ${p.descricao ? `<p class="descricao">${esc(p.descricao)}</p>` : ""}
-          ${p.automacao && accoes.includes("automatizar") ? `<p class="dica">${icone("definicoes")} Pode ser resolvido automaticamente: ${esc(p.automacao)}.</p>` : ""}
-        </section>
-        <section class="cartao">
-          <h2>Conversa</h2>
-          ${p.comentarios.map((c) => `<div class="comentario ${c.interno ? "interno" : ""} ${c.autor === eu.nome ? "meu" : ""}"><small><strong>${esc(c.autor)}</strong> · ${dataHora(c.criado_em)}${c.interno ? " · nota interna (só DSI)" : ""}</small><p>${esc(c.texto)}</p></div>`).join("") || '<p class="vazio">Ainda sem mensagens.</p>'}
-          ${["fechado", "recusado", "cancelado"].includes(p.estado) ? "" : `
+      <section class="cartao conversa-cartao">
+        <div class="abas abas-pedido">
+          <button data-sep="conversa" class="${separadorPedido === "conversa" ? "activo" : ""}">${icone("mensagem")}Conversa${novas ? `<span class="contador">${novas}</span>` : ""}</button>
+          <button data-sep="historico" class="${separadorPedido === "historico" ? "activo" : ""}">${icone("relogio")}Histórico</button>
+        </div>
+        <div id="sep-conversa" ${separadorPedido === "conversa" ? "" : "hidden"}>
+          <div class="chat" id="chat">${p.conversa.map((m) => bolha(m, p)).join("") || `<p class="vazio">Ainda sem mensagens. ${staff() ? "Escreve ao colaborador abaixo." : "Se precisares de acrescentar algo, escreve à DSI abaixo."}</p>`}</div>
+          ${encerrado ? '<p class="vazio">Pedido encerrado: a conversa está fechada.</p>' : `
           <form id="form-comentario" class="form-comentario">
-            <textarea name="texto" rows="3" required placeholder="${staff() ? "Escreve uma mensagem para o colaborador" : "Escreve uma mensagem para a DSI"}"></textarea>
+            <textarea name="texto" rows="2" required placeholder="${staff() ? "Mensagem para o colaborador" : "Mensagem para a DSI"} (Enter envia, Shift+Enter muda de linha)"></textarea>
             <div class="linha">
               ${staff() ? '<label class="interruptor"><input type="checkbox" name="interno"><span></span>Nota interna (só DSI)</label>' : ""}
-              <button class="primario">${icone("mensagem")}Enviar mensagem</button>
+              <button class="primario">${icone("mensagem")}Enviar</button>
             </div>
             <p class="erro" id="erro-comentario"></p>
           </form>`}
-        </section>
-      </div>
-      <section class="cartao"><h2>Histórico</h2><ul class="linha-tempo">
-        ${p.eventos.map((e) => `<li><strong>${esc(EVENTOS[e.accao] ?? e.accao)}</strong>${e.detalhe ? `<span>${esc(e.detalhe)}</span>` : ""}<small>${esc(e.autor)} · ${dataHora(e.criado_em)}</small></li>`).join("")}
-      </ul></section>
+        </div>
+        <div id="sep-historico" ${separadorPedido === "historico" ? "" : "hidden"}>
+          <ul class="linha-tempo">
+            ${p.eventos.map((e) => `<li><strong>${esc(EVENTOS[e.accao] ?? e.accao)}</strong>${e.detalhe ? `<span>${esc(e.detalhe)}</span>` : ""}<small>${esc(e.autor)} · ${dataHora(e.criado_em)}</small></li>`).join("")}
+          </ul>
+        </div>
+      </section>
+      <section class="cartao">
+        <h2>Detalhes</h2>
+        <div class="meta meta-coluna">
+          <div><span>Para</span>${esc(p.beneficiario)}</div>
+          <div><span>Pedido por</span>${esc(p.criado_por)}</div>
+          <div><span>Técnico</span>${esc(p.tecnico || "Por atribuir")}</div>
+          ${p.aprovador ? `<div><span>Aprovado por</span>${esc(p.aprovador)}</div>` : ""}
+          <div><span>Registado em</span>${dataHora(p.criado_em)}${p.origem === "email" ? " · por email" : ""}</div>
+        </div>
+        <div class="prazos">
+          <h3>${icone("relogio")}Prazos</h3>
+          ${p.estado === "em_aprovacao" ? '<p class="vazio">Os prazos começam a contar quando a DSI aprovar o pedido.</p>' : `
+          <div><span>Primeira resposta até</span>${dataHora(p.prazo_resposta)}${p.primeira_resposta_em ? ` <small>Respondido ${dataHora(p.primeira_resposta_em)}</small>` : ""}</div>
+          <div><span>Resolução até</span>${dataHora(p.prazo_resolucao)} ${etiqueta(p.sla)}${p.resolvido_em ? ` <small>Resolvido ${dataHora(p.resolvido_em)}</small>` : ""}</div>
+          <p class="nota-prazo">Urgência ${esc(rot(p.prioridade).toLowerCase())}. Horas úteis: segunda a sexta, das 08:00 às 17:00.</p>`}
+        </div>
+        ${p.respostas.length ? `<dl class="respostas">${p.respostas.map((r) => `<dt>${esc(r.campo)}</dt><dd>${esc(r.valor)}</dd>`).join("")}</dl>` : ""}
+        ${p.descricao ? `<p class="descricao">${esc(p.descricao)}</p>` : ""}
+        ${p.automacao && accoes.includes("automatizar") ? `<p class="dica">${icone("definicoes")} Pode ser resolvido automaticamente: ${esc(p.automacao)}.</p>` : ""}
+      </section>
     </div>`;
+  const chat = $("chat");
+  if (chat) chat.scrollTop = chat.scrollHeight;
+  conteudo.querySelectorAll("[data-sep]").forEach((b) => (b.onclick = () => {
+    separadorPedido = b.dataset.sep;
+    conteudo.querySelectorAll("[data-sep]").forEach((x) => x.classList.toggle("activo", x === b));
+    $("sep-conversa").hidden = separadorPedido !== "conversa";
+    $("sep-historico").hidden = separadorPedido !== "historico";
+    if (separadorPedido === "conversa") chat.scrollTop = chat.scrollHeight;
+  }));
   const fc = $("form-comentario");
-  if (fc) fc.onsubmit = async (e) => {
-    e.preventDefault();
-    try {
-      await api(`/api/pedidos/${id}/comentarios`, { method: "POST", body: JSON.stringify({ texto: fc.texto.value, interno: !!fc.interno?.checked }) });
-      aviso("Mensagem enviada.");
-      vistaPedido(id);
-    } catch (err) { $("erro-comentario").textContent = err.message; }
-  };
+  if (fc) {
+    if (rascunho) fc.texto.value = rascunho;
+    fc.texto.onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); fc.requestSubmit(); } };
+    fc.onsubmit = async (e) => {
+      e.preventDefault();
+      if (!fc.texto.value.trim()) return;
+      try {
+        await api(`/api/pedidos/${id}/comentarios`, { method: "POST", body: JSON.stringify({ texto: fc.texto.value, interno: !!fc.interno?.checked }) });
+        await vistaPedido(id);
+        $("form-comentario")?.texto.focus();
+      } catch (err) { $("erro-comentario").textContent = err.message; }
+    };
+  }
   conteudo.querySelectorAll("[data-accao]").forEach((b) => (b.onclick = () => abrirAccao(id, b.dataset.accao)));
 }
 

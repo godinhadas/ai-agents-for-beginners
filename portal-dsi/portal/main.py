@@ -1,6 +1,7 @@
 """API e interface web do Gestor de Pedidos DSI."""
 
 import asyncio
+import re
 import logging
 import os
 import secrets
@@ -18,7 +19,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import auth, automacoes, db as dbmod, formularios, entra, graph as graphmod, pedidos as wf, schemas as s, seed, sincronizacao, sla, tarefas
+from . import auth, automacoes, db as dbmod, formularios, entra, novidades, graph as graphmod, pedidos as wf, schemas as s, seed, sincronizacao, sla, tarefas
 from .auth import STAFF, exigir, utilizador_actual
 from .db import get_db
 from .models import (AtribuicaoLicenca, Departamento, Equipamento, ItemCatalogo, Licenca, Notificacao, Pedido,
@@ -229,13 +230,16 @@ def eu(u: Utilizador = Depends(utilizador_actual)):
 
 # ---------- pedidos ----------
 
-def _resumo(p: Pedido, momento) -> dict:
+EVENTOS_NA_CONVERSA = ("aguarda_colaborador", "resolvido", "reaberto", "recusado", "aprovado", "cancelado", "fechado")
+
+def _resumo(p: Pedido, momento, por_ler: set[int] = frozenset()) -> dict:
     return {
         "id": p.id, "numero": p.numero, "titulo": p.titulo, "tipo": p.tipo, "item": p.item.nome if p.item else None,
         "prioridade": p.prioridade, "estado": p.estado, "beneficiario": p.beneficiario.nome,
         "criado_por": p.criado_por.nome, "tecnico": p.tecnico.nome if p.tecnico else None,
         "criado_em": p.criado_em, "actualizado_em": p.actualizado_em, "prazo_resolucao": p.prazo_resolucao,
-        "sla": sla.estado_sla(p, momento), "origem": p.origem,
+        "prazo_resposta": p.prazo_resposta, "resolvido_em": p.resolvido_em,
+        "sla": sla.estado_sla(p, momento), "origem": p.origem, "novidade": p.id in por_ler,
     }
 
 
@@ -267,13 +271,22 @@ def listar_pedidos(vista: str | None = None, estado: str | None = None, q: str |
         stmt = stmt.where(Pedido.estado.in_(wf.ABERTOS))
     elif estado:
         stmt = stmt.where(Pedido.estado == estado)
-    if q:
-        if q.upper().startswith("PED-") and q[4:].isdigit():
-            stmt = stmt.where(Pedido.id == int(q[4:]))
-        else:
-            stmt = stmt.where(or_(Pedido.titulo.ilike(f"%{q}%"), Pedido.descricao.ilike(f"%{q}%")))
+    ordem = [Pedido.id.desc()]
+    if q and q.strip():
+        q = q.strip()
+        pessoas = select(Utilizador.id).where(Utilizador.nome.ilike(f"%{q}%"))
+        condicoes = [Pedido.titulo.ilike(f"%{q}%"), Pedido.descricao.ilike(f"%{q}%"),
+                     Pedido.beneficiario_id.in_(pessoas), Pedido.criado_por_id.in_(pessoas)]
+        # Número parcial: "02", "2", "PED-02" ou "ped 2" encontram PED-000002 (o exacto aparece primeiro).
+        numero = re.fullmatch(r"(?i)(?:ped)?[\s#-]*0*(\d{1,9})", q)
+        if numero:
+            digitos = re.sub(r"\D", "", q)
+            condicoes.append(func.printf("%06d", Pedido.id).like(f"%{digitos}%"))
+            ordem.insert(0, (Pedido.id == int(numero.group(1))).desc())
+        stmt = stmt.where(or_(*condicoes))
     momento = agora()
-    return [_resumo(p, momento) for p in db.scalars(stmt.order_by(Pedido.id.desc()).limit(limit))]
+    por_ler = novidades.pedidos_com_novidades(db, u)
+    return [_resumo(p, momento, por_ler) for p in db.scalars(stmt.order_by(*ordem).limit(limit))]
 
 
 @app.post("/api/pedidos", status_code=201, tags=["pedidos"])
@@ -289,10 +302,31 @@ def criar_pedido(dados: s.PedidoIn, db: Session = Depends(get_db), u: Utilizador
 def detalhe_pedido(pedido_id: int, db: Session = Depends(get_db), u: Utilizador = Depends(utilizador_actual)):
     p = _obter_pedido(db, u, pedido_id)
     ver_internos = wf.staff(u)
+    visto_anterior = novidades.marcar_visto(db, u, p.id)
+    dsi = lambda x: x is not None and x.perfil in STAFF  # noqa: E731
+    conversa = [
+        {"tipo": "mensagem", "id": c.id, "nova": visto_anterior is not None and c.id > visto_anterior[0],
+         "autor": c.autor.nome, "autor_id": c.autor_id, "dsi": dsi(c.autor), "texto": c.texto,
+         "interno": c.interno, "criado_em": c.criado_em}
+        for c in p.comentarios if ver_internos or not c.interno
+    ] + [
+        # Perguntas, soluções e motivos também fazem parte da conversa (além do histórico).
+        {"tipo": "evento", "id": e.id, "nova": visto_anterior is not None and e.id > visto_anterior[1],
+         "accao": e.accao, "autor": e.autor.nome if e.autor else "Sistema", "autor_id": e.autor_id,
+         "dsi": e.autor is None or dsi(e.autor), "texto": e.detalhe, "interno": False, "criado_em": e.criado_em}
+        for e in p.eventos if e.detalhe and e.accao in EVENTOS_NA_CONVERSA
+    ]
+    conversa.sort(key=lambda m: m["criado_em"])
+    fecho = (p.resolvido_em + timedelta(days=wf.DIAS_FECHO_AUTOMATICO)) if p.estado == "resolvido" and p.resolvido_em else None
+    solucao = next((e.detalhe for e in reversed(p.eventos) if e.accao == "resolvido"), None) if p.estado == "resolvido" else None
     return {
         **_resumo(p, agora()),
+        "conversa": conversa,
+        "fecho_automatico_em": fecho,
+        "solucao": solucao,
         "descricao": p.descricao,
         "beneficiario_id": p.beneficiario_id,
+        "criado_por_id": p.criado_por_id,
         "aprovador": p.aprovador.nome if p.aprovador else None,
         "prazo_resposta": p.prazo_resposta,
         "primeira_resposta_em": p.primeira_resposta_em,
@@ -376,6 +410,17 @@ def contadores(db: Session = Depends(get_db), u: Utilizador = Depends(utilizador
     return r
 
 
+@app.get("/api/novidades", tags=["painel"])
+def ver_novidades(db: Session = Depends(get_db), u: Utilizador = Depends(utilizador_actual)):
+    """Mensagens e mudanças por ler (sino do cabeçalho)."""
+    return novidades.resumo(db, u)
+
+
+@app.post("/api/novidades/lidas", tags=["painel"])
+def novidades_lidas(db: Session = Depends(get_db), u: Utilizador = Depends(utilizador_actual)):
+    return {"marcadas": novidades.marcar_tudo(db, u)}
+
+
 @app.get("/api/inicio", tags=["painel"])
 def inicio(db: Session = Depends(get_db), u: Utilizador = Depends(utilizador_actual)):
     """Página inicial de qualquer colaborador."""
@@ -388,8 +433,9 @@ def inicio(db: Session = Depends(get_db), u: Utilizador = Depends(utilizador_act
         aprovar = aprovar.where(Pedido.id < 0)  # só a DSI aprova
     equipamentos = db.scalars(select(Equipamento).where(Equipamento.utilizador_id == u.id)).all()
     licencas = db.scalars(select(Licenca).join(AtribuicaoLicenca).where(AtribuicaoLicenca.utilizador_id == u.id)).all()
+    por_ler = novidades.pedidos_com_novidades(db, u)
     return {
-        "meus_pedidos": [_resumo(p, momento) for p in meus],
+        "meus_pedidos": [_resumo(p, momento, por_ler) for p in meus],
         "para_aprovar": [_resumo(p, momento) for p in db.scalars(aprovar.order_by(Pedido.id))],
         "equipamentos": [{"etiqueta": e.etiqueta, "tipo": e.tipo, "marca": e.marca, "modelo": e.modelo,
                           "numero_serie": e.numero_serie} for e in equipamentos],

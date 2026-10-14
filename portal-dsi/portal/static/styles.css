@@ -161,7 +161,7 @@ dialog::backdrop { background: rgb(31 26 41 / .5); }
 menu { display: flex; justify-content: flex-end; gap: 8px; padding: 0; margin: 20px 0 0; }
 footer { width: 100%; max-width: 1240px; margin: 0 auto; padding: 16px; color: var(--suave); font-size: 13px; border-top: 1px solid var(--linha); }
 
-@media (max-width: 900px) { .duas-colunas { grid-template-columns: 1fr; } .utilizador span { display: none; } }
+@media (max-width: 900px) { .duas-colunas { grid-template-columns: 1fr; } .utilizador > span, #sair span { display: none; } }
 @media (max-width: 640px) {
   #dialogo-corpo { grid-template-columns: 1fr; }
   .marca span { display: none; }
@@ -341,3 +341,62 @@ td small.sub, .assunto small { display: block; color: var(--suave); font-size: 1
   .filtros .barra { flex-direction: column; align-items: stretch; }
 }
 .contador[hidden] { display: none; }
+
+/* sino de novidades */
+.sino-caixa { position: relative; }
+.botao.sino { position: relative; padding: 8px 10px; display: inline-flex; }
+.botao.sino svg { width: 20px; height: 20px; }
+.botao.sino .contador { position: absolute; top: -6px; right: -6px; background: var(--perigo); color: #fff; }
+.sino-painel { position: fixed; right: 16px; top: 70px; width: min(380px, calc(100vw - 32px)); max-height: 70vh; overflow: auto;
+  background: var(--cartao); color: var(--texto); border: 1px solid var(--linha); border-radius: 12px; box-shadow: 0 12px 32px rgb(31 26 41 / .22);
+  z-index: 50; white-space: normal; }
+.sino-painel[hidden] { display: none; }
+.sino-cab { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--linha); }
+.sino-painel ul { list-style: none; margin: 0; padding: 0; }
+.sino-painel li button { display: flex; gap: 10px; width: 100%; text-align: left; border: 0; border-bottom: 1px solid var(--linha); border-radius: 0;
+  padding: 10px 14px; background: transparent; color: inherit; font-size: 14px; }
+.sino-painel li button:hover { background: var(--primaria-suave); }
+.sino-painel small { display: block; color: var(--suave); margin-top: 2px; overflow-wrap: anywhere; }
+.sino-painel small.quando { font-size: 11.5px; }
+.sino-painel .vazio { padding: 14px; margin: 0; }
+.aviso.info svg { color: #d6bbfb; }
+
+/* pedido com novidades por ler */
+.mini-icone { position: relative; }
+.ponto { position: absolute; top: -3px; right: -3px; width: 10px; height: 10px; border-radius: 50%; background: var(--perigo); border: 2px solid var(--cartao); }
+.assunto.por-ler strong { color: var(--primaria); }
+
+/* prazos */
+.prazo { display: inline-flex; flex-direction: column; gap: 2px; }
+.prazo small { color: var(--suave); font-size: 12px; }
+.prazos { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--linha); font-size: 14px; display: grid; gap: 10px; }
+.prazos h3 { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 14px; }
+.prazos h3 svg { width: 16px; height: 16px; color: var(--primaria); }
+.prazos > div > span:first-child { display: block; color: var(--suave); font-size: 12px; }
+.prazos small { color: var(--suave); }
+.nota-prazo { margin: 0; color: var(--suave); font-size: 12px; }
+.meta-coluna { grid-template-columns: 1fr 1fr; }
+
+/* confirmação da resolução pelo requerente */
+.confirmar-resolucao { margin: 16px 0; border-left: 4px solid var(--ok); }
+.confirmar-resolucao h2 { display: flex; align-items: center; gap: 8px; margin-top: 0; }
+.confirmar-resolucao h2 svg { width: 20px; height: 20px; color: var(--ok); }
+.confirmar-resolucao .solucao { background: var(--fundo); border-radius: 10px; padding: 10px 12px; white-space: pre-wrap; }
+.confirmar-resolucao .solucao span { display: block; color: var(--suave); font-size: 12px; margin-bottom: 2px; }
+.confirmar-resolucao .barra-accoes { margin: 0; }
+
+/* conversa (chat) */
+.abas-pedido { margin-bottom: 12px; }
+.chat { display: flex; flex-direction: column; gap: 10px; max-height: 460px; min-height: 120px; overflow-y: auto; padding: 4px 2px 8px; }
+.msg { max-width: 82%; padding: 9px 12px; border-radius: 14px; background: var(--fundo); border: 1px solid var(--linha); font-size: 14px; }
+.msg.minha { align-self: flex-end; background: var(--primaria-suave); border-color: transparent; border-bottom-right-radius: 4px; }
+.msg.outra { align-self: flex-start; border-bottom-left-radius: 4px; }
+.msg.interna { border-style: dashed; border-color: var(--alerta); background: rgb(247 144 9 / .06); }
+.msg.nova { box-shadow: 0 0 0 2px var(--primaria); }
+.msg-cab { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.msg-cab small { color: var(--suave); font-size: 11.5px; margin-left: auto; }
+.msg-cab .etiqueta { font-size: 11px; padding: 1px 7px; }
+.msg p { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.rotulo-accao { display: inline-block; margin-top: 4px; font-size: 11.5px; font-weight: 600; color: var(--primaria); text-transform: uppercase; letter-spacing: .03em; }
+.conversa-cartao .form-comentario { border-top: 1px solid var(--linha); padding-top: 10px; }
+@media (max-width: 640px) { .msg { max-width: 94%; } .meta-coluna { grid-template-columns: 1fr; } }

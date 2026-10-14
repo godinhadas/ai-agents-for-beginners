@@ -62,7 +62,14 @@ Todas as páginas seguem o mesmo padrão: título e explicação no topo, acçã
 1. **Pedido.** Na página inicial, o colaborador escolhe um mosaico (por exemplo "Monitor" ou "Erro no Anywhere") e indica para quem é.
 2. **Aprovação.** Os pedidos de acessos, equipamento e licenças são aprovados pela DSI (perfil administrador). Se o pedido for registado por um administrador, fica aprovado de imediato. Avarias, intervenções e apoio no Anywhere seguem directamente para o Helpdesk.
 3. **Tratamento.** O Helpdesk assume ou atribui, pode pedir informação ao colaborador, entrega o equipamento ou atribui a licença, e resolve indicando a solução.
-4. **Fecho.** O colaborador confirma e fecha, ou reabre. O pedido fecha automaticamente 5 dias depois de resolvido.
+4. **Confirmação e fecho.** Quando o técnico resolve, quem pediu recebe a novidade e vê a solução aplicada com dois botões: **Sim, ficou resolvido** (fecha) ou **Não ficou resolvido** (reabre, com o motivo, e avisa o técnico). O técnico não fecha pedidos. Sem resposta, o pedido fecha automaticamente 5 dias depois de resolvido; depois de fechado, quem pediu ainda o pode reabrir durante 5 dias.
+
+### Conversa, novidades, pesquisa e prazos
+
+- **Conversa** e **Histórico** são separadores distintos na página do pedido. A conversa é um chat: mensagens, perguntas do técnico, solução aplicada e motivos de reabertura. Enter envia; Shift+Enter muda de linha. Notas internas aparecem só à DSI, a tracejado.
+- **Sino de novidades** no cabeçalho: mensagens e mudanças por ler (pedido assumido, pedido de informação, resolvido, reaberto, confirmado, novo pedido sem técnico, pedido para aprovar). O portal verifica de 30 em 30 segundos, mostra um aviso, marca o pedido na lista com um ponto vermelho e põe o número de novidades no título do separador. Abrir o pedido marca-o como lido. As notificações do Windows só funcionam em `https://` ou `localhost`; no endereço por IP da rede, ficam os avisos dentro do portal.
+- **Pesquisa** pelo número parcial (`12`, `012`, `PED-12`), assunto, descrição ou nome do colega. O número exacto aparece primeiro.
+- **Prazos** visíveis para todos: na lista (coluna Prazo) e no pedido (primeira resposta e resolução, com o estado No prazo, Em risco, Fora de prazo ou Cumprido).
 
 O catálogo (mosaicos, descrições, ícones, ordem, quais exigem aprovação e as perguntas de cada um) altera-se em Administração > Catálogo, com um editor visual: pergunta, tipo de resposta e uma opção por linha.
 
