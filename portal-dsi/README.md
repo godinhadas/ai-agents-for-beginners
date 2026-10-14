@@ -15,6 +15,14 @@ Se o PowerShell bloquear o script: `Set-ExecutionPolicy -Scope Process -Executio
 
 Testes: `.\.venv\Scripts\python.exe -m pytest`
 
+### Mostrar a um colega (teste na rede da MHAIS)
+
+```powershell
+.\iniciar.ps1 -Rede
+```
+
+O script mostra o endereço a enviar (por exemplo `http://10.0.0.25:8010`). O colega abre-o no browser, desde que esteja na mesma rede ou na VPN. Se não abrir, falta a regra de firewall que o script indica (uma vez, como administrador); se o ESET tiver firewall própria, a porta também tem de ser permitida lá. Em modo de teste não há palavra-passe: usar só com dados de teste e fechar a janela no fim.
+
 ## Perfis
 
 | Perfil | Pode fazer |
