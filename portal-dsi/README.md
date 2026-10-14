@@ -15,6 +15,22 @@ Se o PowerShell bloquear o script: `Set-ExecutionPolicy -Scope Process -Executio
 
 Testes: `.\.venv\Scripts\python.exe -m pytest`
 
+### Arranque diário por cliques (até haver servidor)
+
+| Ficheiro | O que faz |
+|---|---|
+| `Arrancar Gestor de Pedidos.cmd` | Arranca na rede (porta 8010) numa janela minimizada e abre o browser. Se já estiver a correr, só abre o browser. |
+| `Parar Gestor de Pedidos.cmd` | Pára o servidor e fecha a janela minimizada. |
+| `instalar-atalhos.ps1` | Corre uma vez: cria no ambiente de trabalho os atalhos **Gestor de Pedidos DSI** e **Parar Gestor de Pedidos** e põe o arranque na pasta de arranque do Windows, para arrancar sozinho depois de reiniciar e entrar no PC. |
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\instalar-atalhos.ps1                         # tudo
+powershell -ExecutionPolicy Bypass -File .\instalar-atalhos.ps1 -SemArranqueAutomatico  # só ambiente de trabalho
+powershell -ExecutionPolicy Bypass -File .\instalar-atalhos.ps1 -Remover                # apaga os atalhos
+```
+
+O arranque automático só corre depois de iniciares sessão no PC. Para correr sem sessão iniciada, é o servidor com serviço do Windows (ver "Instalação no servidor interno").
+
 ### Mostrar a um colega (teste na rede da MHAIS)
 
 ```powershell
