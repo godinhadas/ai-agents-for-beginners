@@ -2,6 +2,17 @@
 
 Aplicação interna onde os colaboradores da MHAIS fazem todos os pedidos à DSI (Direcção de Sistemas de Informação): acessos ao Windows e a plataformas, Anywhere (acessos e apoio), equipamento e gadgets, licenças e software, reparações, instalações e outras intervenções técnicas. Inclui aprovação pela DSI, SLA (prazos de resposta e resolução), inventário de equipamentos e licenças, login com a conta Microsoft e notificações e pedidos por email.
 
+## Instalar num computador novo (um comando)
+
+No PowerShell, de preferência como administrador (para criar a regra de firewall):
+
+```powershell
+iwr https://raw.githubusercontent.com/godinhadas/ai-agents-for-beginners/claude/crm-app-ujozhn/portal-dsi/instalar.ps1 -OutFile $env:TEMP\instalar-gpd.ps1
+powershell -ExecutionPolicy Bypass -File $env:TEMP\instalar-gpd.ps1
+```
+
+O instalador põe o Python e o Git se faltarem (winget), descarrega só a pasta `portal-dsi` para `C:\Projectos\ai-agents-for-beginners`, cria o ambiente, instala as dependências, cria a regra de firewall, os atalhos e o arranque automático, e arranca o portal. Corrido de novo, actualiza a instalação sem apagar dados. Para levar os dados de outro PC, copia `portal.db` e `.env` para a pasta `portal-dsi` com o portal parado.
+
 ## Arranque no Windows (PowerShell)
 
 ```powershell
