@@ -22,8 +22,9 @@ if ($Rede) {
         Where-Object { $_.IPAddress -notlike "127.*" -and $_.IPAddress -notlike "169.254.*" -and $_.InterfaceAlias -notmatch "vEthernet|Loopback|VirtualBox|VMware" } |
         Select-Object -ExpandProperty IPAddress
     Write-Host ""
-    Write-Host "Gestor de Pedidos DSI acessivel na rede. Envia ao colega:" -ForegroundColor Green
-    foreach ($ip in $ips) { Write-Host "   http://${ip}:$Porta" -ForegroundColor Cyan }
+    Write-Host "Gestor de Pedidos DSI acessivel na rede. Envia ao colega (o nome nao muda quando o IP muda):" -ForegroundColor Green
+    Write-Host "   http://$($env:COMPUTERNAME.ToLower()):$Porta" -ForegroundColor Cyan
+    foreach ($ip in $ips) { Write-Host "   http://${ip}:$Porta   (IP actual)" }
     Write-Host ""
     Write-Host "Se o colega nao conseguir abrir, cria a regra de firewall (PowerShell como administrador):" -ForegroundColor Yellow
     Write-Host "   New-NetFirewallRule -DisplayName 'Gestor de Pedidos DSI (teste)' -Direction Inbound -Protocol TCP -LocalPort $Porta -Action Allow -Profile Domain,Private"

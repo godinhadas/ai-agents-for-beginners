@@ -77,5 +77,6 @@ $ips = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
 Write-Host ""
 Write-Host "Instalado em $pasta" -ForegroundColor Green
 Write-Host "Neste PC:   http://localhost:$Porta"
-foreach ($ip in $ips) { Write-Host "Colegas:    http://${ip}:$Porta" -ForegroundColor Cyan }
+Write-Host "Colegas:    http://$($env:COMPUTERNAME.ToLower()):$Porta   (pelo nome do PC, nao muda com o IP)" -ForegroundColor Cyan
+foreach ($ip in $ips) { Write-Host "            http://${ip}:$Porta   (IP actual)" }
 Write-Host "Primeiro acesso: entra como 'Administrador DSI' e cria os utilizadores em Administracao."
